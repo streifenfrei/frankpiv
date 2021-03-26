@@ -1,0 +1,7 @@
+backend: "frankr"
+eef_ppoint_distance: 0.3
+tool_length: 0.5
+frankr:
+  robot_name: "panda_arm"
+  dynamic_rel: 0.2
+  rviz_marker: false

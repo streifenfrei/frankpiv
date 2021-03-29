@@ -30,5 +30,5 @@ class GeneralBackend(ABC):
         pass
 
     @abstractmethod
-    def move_pyrz(self, pjrz: Union[list, tuple, np.array]):
+    def move_pyrz(self, pjrz: Union[list, tuple, np.array], degrees: bool):
         pass

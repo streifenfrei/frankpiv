@@ -20,13 +20,20 @@ class Backend(GeneralBackend, ABC):
 
     def __init__(self, config):
         super().__init__(config)
+        # configuration
         self.frankr_config = config["frankr"]
-        self.eef_ppoint_distance = config["eef_ppoint_distance"]
+        self.inital_eef_ppoint_distance = config["eef_ppoint_distance"]
         self.tool_length = config["tool_length"]
+        self.pitch_boundaries = np.radians(config["pitch_boundaries"])
+        self.yaw_boundaries = np.radians(config["yaw_boundaries"])
+        self.roll_boundaries = np.radians(config["roll_boundaries"])
+        self.z_translation_boundaries = config["z_translation_boundaries"]
+        # robotic stuff
         self._robot = None
         self._move_group = None
         self._motion_data = None
         self._reference_frame = None
+        self._pyrz = None
         # visualization
         self._visualize = self.frankr_config["rviz_marker"] if "rviz_marker" in self.frankr_config else False
         self._marker_publisher = None
@@ -60,15 +67,17 @@ class Backend(GeneralBackend, ABC):
     def start(self):
         roscpp_initialize(sys.argv)
         rospy.init_node("pivot_controller", anonymous=True)
-        self._robot = Robot(self.frankr_config["robot_name"], self.frankr_config["dynamic_rel"])
-        self._move_group = MoveGroupCommander(self.frankr_config["robot_name"])
+        if self._robot is None:
+            self._robot = Robot(self.frankr_config["robot_name"], self.frankr_config["dynamic_rel"])
+        if self._move_group is None:
+            self._move_group = MoveGroupCommander(self.frankr_config["robot_name"])
         self._motion_data = MotionData()
-        home = [0.0, -np.pi / 4, 0.0, -3 * np.pi / 4, 0.0, np.pi / 2, np.pi / 4]
-        self._robot.move_joints(home, self._motion_data)
-        self._reference_frame = self._robot.current_pose(Affine()) * Affine(z=self.eef_ppoint_distance)
+        self._reference_frame = self._robot.current_pose(Affine()) * Affine(z=self.inital_eef_ppoint_distance)
+        self._pyrz = [0, 0, 0, 0]
         if self._visualize:
-            self._marker_publisher = rospy.Publisher("visualization_marker", Marker, queue_size=10)
-            rospy.sleep(1)
+            if self._marker_publisher is None:
+                self._marker_publisher = rospy.Publisher("visualization_marker", Marker, queue_size=10)
+                rospy.sleep(1)
             self._publish_marker(self._reference_frame, id=0)
 
     def stop(self):
@@ -84,14 +93,33 @@ class Backend(GeneralBackend, ABC):
     def move_to_point(self, frame, point):
         raise NotImplementedError()
 
-    def move_pyrz(self, pjrz):
+    def move_pyrz(self, pjrz, degrees=False):
         pitch, yaw, roll, z_translation = pjrz
-        target_affine = Affine(*self._reference_frame.to_array())
-        target_affine *= Affine(b=yaw, c=pitch) * Affine(a=roll)
-        target_affine.translate([0, 0, z_translation - self.eef_ppoint_distance])
+        if degrees:
+            pitch = np.radians(pitch)
+            yaw = np.radians(yaw)
+            roll = np.radians(roll)
+        pitch = np.clip(pitch, *self.pitch_boundaries)
+        yaw = np.clip(yaw, *self.yaw_boundaries)
+        roll = np.clip(roll, *self.roll_boundaries)
+        z_translation = np.clip(z_translation, *self.z_translation_boundaries)
+        current_pitch, current_yaw, current_roll, current_z_translation = self._pyrz
+        current_eef_ppoint_distance = self.inital_eef_ppoint_distance - current_z_translation
+        new_eef_ppoint_distance = self.inital_eef_ppoint_distance - z_translation
+        target_affine = self._reference_frame * Affine(b=yaw, c=pitch)
+        target_affine *= Affine(z=-new_eef_ppoint_distance, a=roll)
         if self._visualize:
             self._publish_marker(target_affine, id=1)
+        # if relative z-translation is negative do it before pitch and yaw
+        if new_eef_ppoint_distance >= current_eef_ppoint_distance:
+            intermediate_affine = self._reference_frame * Affine(b=current_yaw, c=current_pitch) * \
+                                  Affine(z=-new_eef_ppoint_distance, a=roll)
+            self._robot.move_cartesian(Affine(), intermediate_affine, self._motion_data)
+        else:
+            intermediate_affine = self._reference_frame * Affine(b=yaw, c=pitch) * \
+                                  Affine(z=-current_eef_ppoint_distance, a=current_roll)
+            self._robot.move_cartesian(Affine(), intermediate_affine, self._motion_data)
         self._robot.move_cartesian(Affine(), target_affine, self._motion_data)
+        self._pyrz = [pitch, yaw, roll, z_translation]
         if self._visualize:
             self._delete_marker(id=1)
-

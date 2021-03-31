@@ -26,7 +26,7 @@ class GeneralBackend(ABC):
         self.stop()
 
     @abstractmethod
-    def move_to_point(self, frame: Union[list, tuple, np.array], point: Union[list, tuple, np.array]):
+    def move_to_point(self, point: Union[list, tuple, np.array], roll: float, frame: Union[list, tuple, np.array]):
         pass
 
     @abstractmethod
@@ -36,3 +36,7 @@ class GeneralBackend(ABC):
     @abstractmethod
     def move_pyrz_relative(self, pjrz: Union[list, tuple, np.array], degrees: bool):
         pass
+
+
+class UnattainablePoseException(Exception):
+    pass

@@ -13,7 +13,7 @@ from scipy.spatial.transform.rotation import Rotation
 from std_msgs.msg import Header, ColorRGBA
 from visualization_msgs.msg import Marker
 
-from frankpiv.backend.general import GeneralBackend
+from frankpiv.backend.general import GeneralBackend, UnattainablePoseException
 
 
 class Backend(GeneralBackend, ABC):
@@ -94,18 +94,20 @@ class Backend(GeneralBackend, ABC):
     def _clip_pose(self, pose: Affine):
         pose_local = self._reference_frame.inverse() * pose
         point = pose_local.to_array()[:3]
-        distance = np.linalg.norm(point)
-        z_translation = distance if point[2] >= 0 else -distance
-        z_axis = [0, 0, 1] if point[2] >= 0 else [0, 0, -1]
+        if point[2] < 0:
+            raise ValueError("Pose must have positive z value in the reference frame")
+        z_translation = np.linalg.norm(point)
         if point[0] == point[1] == point[2] == 0.0:
             point_offset = (pose_local * Affine(z=1)).to_array()[:3]
-            angle = np.inner(point_offset, z_axis)
+            angle = np.inner(point_offset, [0, 0, 1])
         else:
-            angle = np.inner(point, z_axis) / distance
+            angle = np.inner(point, [0, 0, 1]) / z_translation
         angle = np.arccos(angle)
-        if angle < -self.max_angle or angle > self.max_angle:
-            angle = -self.max_angle if angle >= 0 else self.max_angle
-            rotation_axis = np.cross(point, z_axis)
+        if angle < -self.max_angle or angle > self.max_angle or \
+                z_translation < self.z_translation_boundaries[0] or z_translation > self.z_translation_boundaries[1]:
+            angle = np.clip(angle, [-self.max_angle, self.max_angle])
+            z_translation = np.clip(z_translation, self.z_translation_boundaries)
+            rotation_axis = np.cross(point, [0, 0, 1])
             rotation_axis = rotation_axis / np.linalg.norm(rotation_axis) * angle
             clipped_pose = self._reference_frame * \
                            Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx")) * \
@@ -113,14 +115,32 @@ class Backend(GeneralBackend, ABC):
             return True, clipped_pose
         return False, pose
 
-    def _point_to_pyz(self, point: Affine):
-        point = (self._reference_frame.inverse() * point).to_array()
-        distance = np.linalg.norm(point[:3])
-        z_translation = distance if point[2] >= 0 else -distance
-        return point[5], point[4], z_translation
+    def _pose_to_pyz(self, pose: Affine):
+        pose = (self._reference_frame.inverse() * pose).to_array()
+        distance = np.linalg.norm(pose[:3])
+        z_translation = distance if pose[2] >= 0 else -distance
+        return pose[5], pose[4], z_translation
 
-    def move_to_point(self, frame: Union[list, tuple, np.array], point: Union[list, tuple, np.array]):
-        raise NotImplementedError()
+    def move_to_point(self, point: Union[list, tuple, np.array], roll: float,
+                      frame: Union[list, tuple, np.array] = None):
+        point = Affine(x=point[0], y=point[1], z=point[2])
+        if frame is not None:
+            point = Affine(frame).inverse() * point
+        point = (self._reference_frame.inverse() * point).to_array()[:3]
+        if point[0] == point[1] == point[2] == 0:
+            point = Affine()
+        else:
+            if point[2] < 0:
+                raise UnattainablePoseException("Point must have positive z value in reference frame")
+            distance = np.linalg.norm(point)
+            z_translation = distance if point[2] >= 0 else -distance
+            angle = np.inner(point, [0, 0, 1])
+            rotation_axis = np.cross(point, [0, 0, 1])
+            rotation_axis = rotation_axis / np.linalg.norm(rotation_axis) * angle
+            point = Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx")) * Affine(z=z_translation)
+        point = self._reference_frame * point
+        pitch, yaw, z_translation = self._pose_to_pyz(point)
+        self.move_pyrz([pitch, yaw, roll, z_translation])
 
     def move_pyrz(self, pjrz: Union[list, tuple, np.array], degrees: bool = False):
         # prepare input
@@ -139,7 +159,7 @@ class Backend(GeneralBackend, ABC):
         target_affine *= Affine(z=z_translation)
         clipped, target_affine = self._clip_pose(target_affine)
         if clipped:
-            pitch, yaw, _ = self._point_to_pyz(target_affine)
+            pitch, yaw, _ = self._pose_to_pyz(target_affine)
         target_affine *= Affine(z=-self.inital_eef_ppoint_distance, a=roll)
         if self._visualize:
             self._publish_marker(target_affine, id=1)

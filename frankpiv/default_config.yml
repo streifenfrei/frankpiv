@@ -3,6 +3,7 @@ tool_length: 0.5
 max_angle: 30
 roll_boundaries: [-360, 360]
 z_translation_boundaries: [-0.2, 0.3]
+clip_to_boundaries: true
 
 backend: "frankr"
 frankr:

@@ -30,6 +30,7 @@ class Backend(GeneralBackend, ABC):
         self.max_angle = np.radians(config["max_angle"])
         self.roll_boundaries = np.radians(config["roll_boundaries"])
         self.z_translation_boundaries = config["z_translation_boundaries"]
+        self.clip_to_boundaries = config["clip_to_boundaries"]
         # robotic stuff
         self._robot = None
         self._move_group = None
@@ -131,7 +132,7 @@ class Backend(GeneralBackend, ABC):
             point = Affine()
         else:
             if point[2] < 0:
-                raise UnattainablePoseException("Point must have positive z value in reference frame")
+                raise UnattainablePoseException("Point must have positive z value in the reference frame")
             distance = np.linalg.norm(point)
             z_translation = distance if point[2] >= 0 else -distance
             angle = np.inner(point, [0, 0, 1])
@@ -149,6 +150,11 @@ class Backend(GeneralBackend, ABC):
             pitch = np.radians(pitch)
             yaw = np.radians(yaw)
             roll = np.radians(roll)
+        if not self.clip_to_boundaries:
+            if roll < self.roll_boundaries[0] or roll > self.roll_boundaries[1]:
+                raise UnattainablePoseException("Roll value is outside of specified boundaries")
+            if z_translation < self.z_translation_boundaries[0] or z_translation > self.z_translation_boundaries[1]:
+                raise UnattainablePoseException("Z-translation value is outside of specified boundaries")
         roll = np.clip(roll, *self.roll_boundaries)
         z_translation = np.clip(z_translation, *self.z_translation_boundaries)
         current_pitch, current_yaw, current_roll, current_z_translation = self._pyrz
@@ -159,6 +165,8 @@ class Backend(GeneralBackend, ABC):
         target_affine *= Affine(z=z_translation)
         clipped, target_affine = self._clip_pose(target_affine)
         if clipped:
+            if not self.clip_to_boundaries:
+                raise UnattainablePoseException("Target point lies outside of specified boundaries")
             pitch, yaw, _ = self._pose_to_pyz(target_affine)
         target_affine *= Affine(z=-self.inital_eef_ppoint_distance, a=roll)
         if self._visualize:

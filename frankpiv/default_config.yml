@@ -1,7 +1,6 @@
 eef_ppoint_distance: 0.3
 tool_length: 0.5
-pitch_boundaries: [-30, 30]
-yaw_boundaries: [-30, 30]
+max_angle: 30
 roll_boundaries: [-360, 360]
 z_translation_boundaries: [-0.2, 0.3]
 

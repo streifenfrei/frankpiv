@@ -12,10 +12,7 @@ class Controller:
 
     def __init__(self, config: dict):
         assert config["eef_ppoint_distance"] < config["tool_length"]
-        config["pitch_boundaries"][0] = max([config["pitch_boundaries"][0], -90])
-        config["pitch_boundaries"][1] = min([config["pitch_boundaries"][1], 90])
-        config["yaw_boundaries"][0] = max([config["yaw_boundaries"][0], -90])
-        config["yaw_boundaries"][1] = min([config["yaw_boundaries"][1], 90])
+        config["max_angle"] = min([config["max_angle"], 90])
         config["roll_boundaries"][0] = max([config["roll_boundaries"][0], -360])
         config["roll_boundaries"][1] = min([config["roll_boundaries"][1], 360])
         config["z_translation_boundaries"][0] = max([config["z_translation_boundaries"][0],

@@ -146,7 +146,9 @@ class Backend(GeneralBackend, ABC):
             z_translation = distance - self.tool_length + self.inital_eef_ppoint_distance
             pose *= Affine(z=z_translation)
         if self.move_directly:
-            _, pose = self._clip_pose(pose)
+            clipped, pose = self._clip_pose(pose)
+            if clipped and not self.clip_to_boundaries:
+                raise UnattainablePoseException("Target point lies outside of specified boundaries")
             target_pose = self._reference_frame * (pose * Affine(z=-self.inital_eef_ppoint_distance, a=roll))
             if self._visualize:
                 self._publish_marker(target_pose, id=1)

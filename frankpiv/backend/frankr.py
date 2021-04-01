@@ -87,37 +87,37 @@ class Backend(GeneralBackend, ABC):
         self._move_group = None
         self._motion_data = None
         if self._visualize:
-            # self._delete_marker()
+            #self._delete_marker()
             self._marker_publisher = None
         rospy.signal_shutdown("done")
         roscpp_shutdown()
 
     def _clip_pose(self, pose: Affine):
-        pose_local = self._reference_frame.inverse() * pose
+        pose_local = pose
         point = pose_local.to_array()[:3]
-        if point[2] < 0:
-            raise ValueError("Pose must have positive z value in the reference frame")
-        z_translation = np.linalg.norm(point)
+        distance = np.linalg.norm(point)
+        z_translation = distance if point[2] >= 0 else -distance
+        z_axis = [0, 0, 1] if point[2] >= 0 else [0, 0, -1]
         if point[0] == point[1] == point[2] == 0.0:
             point_offset = (pose_local * Affine(z=1)).to_array()[:3]
-            angle = np.inner(point_offset, [0, 0, 1])
+            angle = np.inner(point_offset, z_axis)
         else:
-            angle = np.inner(point, [0, 0, 1]) / z_translation
-        angle = np.arccos(angle)
+            angle = np.inner(point, z_axis) / z_translation
+        angle = -np.arccos(angle)
         if angle < -self.max_angle or angle > self.max_angle or \
                 z_translation < self.z_translation_boundaries[0] or z_translation > self.z_translation_boundaries[1]:
-            angle = np.clip(angle, [-self.max_angle, self.max_angle])
-            z_translation = np.clip(z_translation, self.z_translation_boundaries)
-            rotation_axis = np.cross(point, [0, 0, 1])
+            angle = np.clip(angle, -self.max_angle, self.max_angle)
+            z_translation = np.clip(z_translation, *self.z_translation_boundaries)
+            rotation_axis = np.cross(point, z_axis)
             rotation_axis = rotation_axis / np.linalg.norm(rotation_axis) * angle
-            clipped_pose = self._reference_frame * \
-                           Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx")) * \
+            clipped_pose = Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx")) * \
                            Affine(z=z_translation)
             return True, clipped_pose
         return False, pose
 
-    def _pose_to_pyz(self, pose: Affine):
-        pose = (self._reference_frame.inverse() * pose).to_array()
+    @staticmethod
+    def _pose_to_pyz(pose: Affine):
+        pose = pose.to_array()
         distance = np.linalg.norm(pose[:3])
         z_translation = distance if pose[2] >= 0 else -distance
         return pose[5], pose[4], z_translation
@@ -126,20 +126,24 @@ class Backend(GeneralBackend, ABC):
                       frame: Union[list, tuple, np.array] = None):
         point = Affine(x=point[0], y=point[1], z=point[2])
         if frame is not None:
-            point = Affine(frame).inverse() * point
-        point = (self._reference_frame.inverse() * point).to_array()[:3]
-        if point[0] == point[1] == point[2] == 0:
+            point = Affine(frame) * point
+            point = (self._reference_frame.inverse() * point)
+        point = point.to_array()[:3]
+        if point[0] == point[1] == point[2] == 0.0:
             point = Affine()
         else:
             if point[2] < 0:
-                raise UnattainablePoseException("Point must have positive z value in the reference frame")
+                raise UnattainablePoseException("Point must have positive z value in the pivot point frame")
             distance = np.linalg.norm(point)
-            z_translation = distance if point[2] >= 0 else -distance
-            angle = np.inner(point, [0, 0, 1])
-            rotation_axis = np.cross(point, [0, 0, 1])
-            rotation_axis = rotation_axis / np.linalg.norm(rotation_axis) * angle
-            point = Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx")) * Affine(z=z_translation)
-        point = self._reference_frame * point
+            angle = -np.arccos(np.inner(point, [0, 0, 1]) / distance)
+            if angle == 0.0:
+                point = Affine()
+            else:
+                rotation_axis = np.cross(point, [0, 0, 1])
+                rotation_axis = rotation_axis / np.linalg.norm(rotation_axis) * angle
+                point = Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx"))
+            z_translation = distance - self.tool_length + self.inital_eef_ppoint_distance
+            point *= Affine(z=z_translation)
         pitch, yaw, z_translation = self._pose_to_pyz(point)
         self.move_pyrz([pitch, yaw, roll, z_translation])
 
@@ -161,16 +165,16 @@ class Backend(GeneralBackend, ABC):
         current_eef_ppoint_distance = self.inital_eef_ppoint_distance - current_z_translation
         # calculate target pose
         new_eef_ppoint_distance = self.inital_eef_ppoint_distance - z_translation
-        target_affine = self._reference_frame * Affine(b=yaw, c=pitch)
-        target_affine *= Affine(z=z_translation)
+        target_affine = Affine(b=yaw, c=pitch) * Affine(z=z_translation)
         clipped, target_affine = self._clip_pose(target_affine)
         if clipped:
             if not self.clip_to_boundaries:
                 raise UnattainablePoseException("Target point lies outside of specified boundaries")
             pitch, yaw, _ = self._pose_to_pyz(target_affine)
-        target_affine *= Affine(z=-self.inital_eef_ppoint_distance, a=roll)
+        target_affine = self._reference_frame * (target_affine * Affine(z=-self.inital_eef_ppoint_distance, a=roll))
         if self._visualize:
             self._publish_marker(target_affine, id=1)
+            self._publish_marker(target_affine * Affine(z=self.tool_length), type=self.MarkerType.Point, id=2)
         # move the robot
         # if relative z-translation is negative do it before pitch and yaw
         if new_eef_ppoint_distance > current_eef_ppoint_distance:
@@ -183,8 +187,9 @@ class Backend(GeneralBackend, ABC):
             self._robot.move_cartesian(Affine(), intermediate_affine, self._motion_data)
         self._robot.move_cartesian(Affine(), target_affine, self._motion_data)
         self._pyrz = [pitch, yaw, roll, z_translation]
-        if self._visualize:
-            self._delete_marker(id=1)
+        #if self._visualize:
+        #    self._delete_marker(id=1)
+        #    self._delete_marker(id=2)
 
     def move_pyrz_relative(self, pjrz: Union[list, tuple, np.array], degrees: bool = False):
         pjrz = list(map(operator.add, self._pyrz, pjrz))

@@ -1,13 +1,13 @@
-eef_ppoint_distance: 0.3
+eef_ppoint_distance: 0.3  # distance from end effector to pivot point
 tool_length: 0.5
-max_angle: 30
+max_angle: 30  # maximum angle of the 'pitch/yaw' cone
 roll_boundaries: [-360, 360]
 z_translation_boundaries: [-0.2, 0.3]
-clip_to_boundaries: true
-move_directly: false
+clip_to_boundaries: true  # if true, clip outsider points to valid boundaries (throw exceptions otherwise)
+move_directly: false  # if true, move to target point on the shortest path. Otherwise do pitch/yaw and z-translation/roll successively (order depends on the relative z-translation)
 
 backend: "frankr"
 frankr:
   robot_name: "panda_arm"
   dynamic_rel: 0.2
-  rviz_marker: false
+  rviz_marker: false  # if true, publish Marker messages under /visualization_marker

@@ -99,14 +99,16 @@ class Backend(GeneralBackend, ABC):
         distance = np.linalg.norm(point)
         z_translation = distance if point[2] >= 0 else -distance
         z_axis = [0, 0, 1] if point[2] >= 0 else [0, 0, -1]
-        if point[0] == point[1] == point[2] == 0.0:
+        if point[0] == point[1] == point[2] == 0.0:  # point lies in the origin -> add offset to calculate angle
             point_offset = (pose_local * Affine(z=1)).to_array()[:3]
             angle = np.inner(point_offset, z_axis)
         else:
             angle = np.inner(point, z_axis) / z_translation
         angle = -np.arccos(angle)
+        # clip pose if angle or z-translation are outside the specified boundaries
         if angle < -self.max_angle or angle > self.max_angle or \
                 z_translation < self.z_translation_boundaries[0] or z_translation > self.z_translation_boundaries[1]:
+            # calculate clipped point by rotating along the rotation axis and translate along the z axis
             angle = np.clip(angle, -self.max_angle, self.max_angle)
             z_translation = np.clip(z_translation, *self.z_translation_boundaries)
             rotation_axis = np.cross(point, z_axis)
@@ -125,21 +127,26 @@ class Backend(GeneralBackend, ABC):
 
     def move_to_point(self, point: Union[list, tuple, np.array], roll: float,
                       frame: Union[list, tuple, np.array] = None):
+        if roll < self.roll_boundaries[0] or roll > self.roll_boundaries[1]:
+            raise UnattainablePoseException("Roll value is outside of specified boundaries")
+        roll = np.clip(roll, *self.roll_boundaries)
         point = Affine(x=point[0], y=point[1], z=point[2])
         if frame is not None:
+            # convert target point to the reference frame
             point = Affine(frame) * point
             point = (self._reference_frame.inverse() * point)
         point = point.to_array()[:3]
-        if point[0] == point[1] == point[2] == 0.0:
+        if point[0] == point[1] == point[2] == 0.0:  # target point is the origin
             pose = Affine()
         else:
             if point[2] < 0:
                 raise UnattainablePoseException("Point must have positive z value in the pivot point frame")
             distance = np.linalg.norm(point)
             angle = -np.arccos(np.inner(point, [0, 0, 1]) / distance)
-            if angle == 0.0:
+            if angle == 0.0:  # target point lies on the z axis
                 pose = Affine()
             else:
+                # we rotate and translate to the target point to get the target rotation
                 rotation_axis = np.cross(point, [0, 0, 1])
                 rotation_axis = rotation_axis / np.linalg.norm(rotation_axis) * angle
                 pose = Affine(0, 0, 0, *Rotation.from_rotvec(rotation_axis).as_euler("zyx"))
@@ -149,6 +156,7 @@ class Backend(GeneralBackend, ABC):
             clipped, pose = self._clip_pose(pose)
             if clipped and not self.clip_to_boundaries:
                 raise UnattainablePoseException("Target point lies outside of specified boundaries")
+            # translate to the end effector pose and convert to global frame
             target_pose = self._reference_frame * (pose * Affine(z=-self.inital_eef_ppoint_distance, a=roll))
             if self._visualize:
                 self._publish_marker(target_pose, id=1)

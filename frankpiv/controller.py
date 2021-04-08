@@ -20,7 +20,7 @@ class Controller:
         config["z_translation_boundaries"][1] = min([config["z_translation_boundaries"][1],
                                                      config["eef_ppoint_distance"]])
         try:
-            backend_module = importlib.import_module(f"frankpiv.backend.{config['backend']}")
+            backend_module = importlib.import_module(f"frankpiv.backend.{config['backend']}_backend")
             self.backend = backend_module.Backend(config)
         except (ImportError, AttributeError):
             raise ValueError(f"No such backend: {config['backend']}")

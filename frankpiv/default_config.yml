@@ -11,3 +11,6 @@ frankr:
   robot_name: "panda_arm"
   dynamic_rel: 0.2
   rviz_marker: false  # if true, publish Marker messages under /visualization_marker
+frankx:
+  fci_ip: "172.16.0.2"
+  dynamic_rel: 0.2

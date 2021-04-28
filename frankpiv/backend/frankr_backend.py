@@ -17,9 +17,6 @@ from frankpiv.backend.general import GeneralBackend, UnattainablePoseException
 
 
 class Backend(GeneralBackend, ABC):
-    class MarkerType(IntEnum):
-        Axis = 5
-        Point = 2
 
     def __init__(self, config):
         super().__init__(config)
@@ -39,37 +36,10 @@ class Backend(GeneralBackend, ABC):
         self._reference_frame = None
         self._pyrz = None
         # visualization
-        self._visualize = self.frankr_config["rviz_marker"] if "rviz_marker" in self.frankr_config else False
         self._marker_publisher = None
 
-    def _publish_marker(self, pose: Affine, id: int = 0, type: MarkerType = MarkerType.Axis):
-        header = Header(frame_id="world", stamp=rospy.Time.now())
-        root = Point(*pose.to_array()[:3])
-        if type == Backend.MarkerType.Axis:
-            point_x = Point(*(pose * Affine(x=0.05)).to_array()[:3])
-            point_y = Point(*(pose * Affine(y=0.05)).to_array()[:3])
-            point_z = Point(*(pose * Affine(z=0.05)).to_array()[:3])
-            marker = Marker(header=header, id=id, type=type, action=0, pose=Pose(),
-                            scale=Vector3(x=0.01), points=[root, point_x, root, point_y, root, point_z],
-                            colors=[ColorRGBA(1, 0, 0, 1), ColorRGBA(1, 0, 0, 1),
-                                    ColorRGBA(0, 1, 0, 1), ColorRGBA(0, 1, 0, 1),
-                                    ColorRGBA(0, 0, 1, 1), ColorRGBA(0, 0, 1, 1)])
-        elif type == Backend.MarkerType.Point:
-            marker = Marker(header=header, id=id, type=type, action=0, pose=Pose(position=root),
-                            scale=Vector3(0.01, 0.01, 0.01), color=ColorRGBA(0, 0, 0, 1))
-        else:
-            raise ValueError(f"No such MarkerType: {type}")
-        self._marker_publisher.publish(marker)
-        rospy.sleep(1)
-
-    def _delete_marker(self, id=None):
-        action = 3 if id is None else 2
-        self._marker_publisher.publish(Marker(id=id, action=action))
-        rospy.sleep(1)
-
     def start(self):
-        roscpp_initialize(sys.argv)
-        rospy.init_node("pivot_controller", anonymous=True)
+        super().start()
         if self._robot is None:
             self._robot = Robot(self.frankr_config["robot_name"], self.frankr_config["dynamic_rel"])
         if self._move_group is None:
@@ -78,20 +48,14 @@ class Backend(GeneralBackend, ABC):
         self._reference_frame = self._robot.current_pose(Affine()) * Affine(z=self.inital_eef_ppoint_distance)
         self._pyrz = [0, 0, 0, 0]
         if self._visualize:
-            if self._marker_publisher is None:
-                self._marker_publisher = rospy.Publisher("visualization_marker", Marker, queue_size=10)
-                rospy.sleep(1)
             self._publish_marker(self._reference_frame, id=0)
 
     def stop(self):
+        super().stop()
         self._robot = None
         self._move_group = None
         self._motion_data = None
-        if self._visualize:
-            self._delete_marker()
-            self._marker_publisher = None
-        rospy.signal_shutdown("done")
-        roscpp_shutdown()
+
 
     def _clip_pose(self, pose: Affine):
         pose_local = pose

@@ -7,7 +7,7 @@ clip_to_boundaries: true  # if true, clip outsider points to valid boundaries (t
 move_directly: false  # if true, move to target point on the shortest path. Otherwise do pitch/yaw and z-translation/roll successively (order depends on the relative z-translation)
 rviz_marker: true  # if true, publish Marker messages under /visualization_marker
 
-backend: "frankr"
+backend: "moveit"
 frankr:
   robot_name: "panda_arm"
   dynamic_rel: 0.2

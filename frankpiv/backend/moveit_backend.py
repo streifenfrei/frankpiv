@@ -9,8 +9,11 @@ from frankpiv.backend.conversions import pose_msg_to_affine, affine_to_pose_msg
 from frankpiv.backend.general import GeneralBackend
 
 
-class Backend(GeneralBackend, ABC):
+EEF_STEP = 0.01
+JUMP_THRESHOLD = 10.
 
+
+class Backend(GeneralBackend, ABC):
     def __init__(self, config, async_motion=False):
         super().__init__(config)
         self.moveit_config = config["moveit"]
@@ -40,7 +43,9 @@ class Backend(GeneralBackend, ABC):
         with self._thread_queue_lock:
             is_most_recent = self._thread_queue.index(threading.current_thread().ident) == (len(self._thread_queue) - 1)
         if is_most_recent:
-            self._robot.go(affine_to_pose_msg(target_pose))
+            plan, fraction = self._robot.compute_cartesian_path([affine_to_pose_msg(target_pose)],
+                                                                EEF_STEP, JUMP_THRESHOLD)
+            self._robot.execute(plan)
 
     def _move_pyrz_internal(self, pjrz, degrees):
         self._has_stopped.clear()

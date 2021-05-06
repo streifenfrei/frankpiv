@@ -10,7 +10,7 @@ from scipy.spatial.transform.rotation import Rotation
 from std_msgs.msg import Header, ColorRGBA
 from visualization_msgs.msg import Marker
 
-
+# TODO use independent affine implementation! Currently frankr's Affine class is used
 class GeneralBackend(ABC):
 
     class MarkerType(IntEnum):

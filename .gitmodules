@@ -1,9 +1,9 @@
-[submodule "frankr"]
-	path = dependencies/frankr
-	url = https://github.com/dti-research/frankr
-[submodule "frankx"]
-	path = dependencies/frankx
-	url = https://github.com/pantor/frankx
 [submodule "yaml-cpp"]
 	path = dependencies/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "frankr"]
+	path = dependencies/frankr
+	url = https://github.com/dti-research/frankr.git
+[submodule "frankx"]
+	path = dependencies/frankx
+	url = https://github.com/pantor/frankx.git

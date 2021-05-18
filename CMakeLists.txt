@@ -37,7 +37,7 @@ add_library(frankpiv SHARED
 
 set(frankx_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/frankx/include")
 target_include_directories(frankpiv PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(frankpiv PUBLIC Eigen3::Eigen YAML_CPP roscpp frankx)
+target_link_libraries(frankpiv PUBLIC Eigen3::Eigen YAML_CPP roscpp frankr frankx)
 
 add_executable(example examples/frankx_example.cpp)
 target_link_libraries(example frankpiv frankx)

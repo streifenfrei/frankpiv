@@ -1,3 +1,6 @@
+[submodule "frankr"]
+	path = dependencies/frankr
+	url = https://github.com/dti-research/frankr
 [submodule "frankx"]
 	path = dependencies/frankx
 	url = https://github.com/pantor/frankx

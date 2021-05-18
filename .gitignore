@@ -1,2 +1,6 @@
 /dependencies/*
 !/dependencies/CMakeLists.txt
+
+/cmake-build-debug
+/.idea
+__pycache__

@@ -1,10 +1,8 @@
 #include <Eigen/Geometry>
 #include <unsupported/Eigen/EulerAngles>
 
-using namespace Eigen;
-
 namespace frankpiv::util {
-    Eigen::Vector3d get_rotation_euler(const Affine3d &affine) {
+    Eigen::Vector3d get_rotation_euler(const Eigen::Affine3d &affine) {
         Eigen::Vector3d angles = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>::FromRotation<false, false, false>(
                 affine.rotation()).angles();
         Eigen::Vector3d angles_equal;
@@ -30,12 +28,12 @@ namespace frankpiv::util {
         return std::max(lower, std::min(n, upper));
     }
 
-    double clip(double n, const Vector2d &boundaries) {
+    double clip(double n, const Eigen::Vector2d &boundaries) {
         return clip(n, boundaries(0), boundaries(1));
     }
 
-    geometry_msgs::Point to_point_msg(Affine3d affine) {
-        Vector3d point_eigen = affine.translation();
+    geometry_msgs::Point to_point_msg(Eigen::Affine3d affine) {
+        Eigen::Vector3d point_eigen = affine.translation();
         geometry_msgs::Point point;
         point.x = point_eigen(0);
         point.y = point_eigen(1);

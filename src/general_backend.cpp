@@ -10,6 +10,8 @@ using namespace Eigen;
 using namespace frankpiv::util;
 using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
 
+using namespace Eigen;
+
 namespace frankpiv::backend {
     GeneralBackend::GeneralBackend(const YAML::Node &config, std::string node_name) {
         // configuration
@@ -149,7 +151,8 @@ namespace frankpiv::backend {
                            Euler(0, 0, roll).toRotationMatrix());
             if (this->visualize) {
                 this->publishMarker(target_pose, 1);
-                this->publishMarker(target_pose * Translation3d(0, 0, this->tool_length), frankpiv::backend::GeneralBackend::POINT_MARKER, 2);
+                this->publishMarker(target_pose * Translation3d(0, 0, this->tool_length),
+                                    frankpiv::backend::GeneralBackend::POINT_MARKER, 2);
             }
             this->moveRobotCartesian(target_pose);
             if (this->visualize) {
@@ -192,21 +195,24 @@ namespace frankpiv::backend {
         double new_eef_ppoint_distance = this->initial_eef_ppoint_distance - z_translation;
         Affine3d target_affine = Euler(pitch, yaw, 0).toRotationMatrix() * Translation3d(0, 0, z_translation);
         bool clipped = this->clipPose(target_affine);
-        if (clipped){
-            if (!this->clip_to_boundaries){
+        if (clipped) {
+            if (!this->clip_to_boundaries) {
                 throw UnattainablePoseException("Target point lies outside of specified boundaries");
             }
             Vector3d pyz = this->poseToPYZ(target_affine);
             pitch = pyz(0);
             yaw = pyz(1);
         }
-        target_affine = *this->reference_frame * (target_affine * (Translation3d(0, 0, -this->initial_eef_ppoint_distance) * Euler(0, 0, roll).toRotationMatrix()));
+        target_affine = *this->reference_frame * (target_affine *
+                                                  (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
+                                                   Euler(0, 0, roll).toRotationMatrix()));
         // move the robot
-        if (this->visualize){
+        if (this->visualize) {
             this->publishMarker(target_affine, 1);
-            this->publishMarker(target_affine * Translation3d(0, 0, this->tool_length), frankpiv::backend::GeneralBackend::POINT_MARKER, 2);
+            this->publishMarker(target_affine * Translation3d(0, 0, this->tool_length),
+                                frankpiv::backend::GeneralBackend::POINT_MARKER, 2);
         }
-        if (!this->move_directly){
+        if (!this->move_directly) {
             double current_pitch = (*this->current_pyrz)(0);
             double current_yaw = (*this->current_pyrz)(1);
             double current_roll = (*this->current_pyrz)(2);
@@ -215,14 +221,18 @@ namespace frankpiv::backend {
             // if relative z-translation is negative do it before pitch and yaw
             Affine3d intermediate_affine;
             intermediate_affine = new_eef_ppoint_distance > current_eef_ppoint_distance ?
-                    (*this->reference_frame) * Euler(current_pitch, current_yaw, 0).toRotationMatrix() * Translation3d(0, 0, -current_eef_ppoint_distance) * Euler(0, 0, roll).toRotationMatrix() :
-                    (*this->reference_frame) * Euler(pitch, yaw, 0).toRotationMatrix() * Translation3d(0, 0, -current_eef_ppoint_distance) * Euler(0, 0, current_roll).toRotationMatrix();
+                                  (*this->reference_frame) * Euler(current_pitch, current_yaw, 0).toRotationMatrix() *
+                                  Translation3d(0, 0, -current_eef_ppoint_distance) *
+                                  Euler(0, 0, roll).toRotationMatrix() :
+                                  (*this->reference_frame) * Euler(pitch, yaw, 0).toRotationMatrix() *
+                                  Translation3d(0, 0, -current_eef_ppoint_distance) *
+                                  Euler(0, 0, current_roll).toRotationMatrix();
             this->moveRobotCartesian(intermediate_affine);
         }
         this->moveRobotCartesian(target_affine);
         Vector4d target_pyrz = Vector4d(pitch, yaw, roll, z_translation);
         this->current_pyrz = &target_pyrz;
-        if (this->visualize){
+        if (this->visualize) {
             this->deleteMarker(1);
             this->deleteMarker(2);
         }
@@ -244,7 +254,7 @@ namespace frankpiv::backend {
         marker.id = id;
         marker.type = type;
         marker.action = 0;
-        if (type == GeneralBackend::AXIS_MARKER){
+        if (type == GeneralBackend::AXIS_MARKER) {
             marker.scale.x = 0.01;
             geometry_msgs::Point point_x = to_point_msg(pose * Translation3d(0.05, 0, 0));
             geometry_msgs::Point point_y = to_point_msg(pose * Translation3d(0, 0.05, 0));
@@ -253,7 +263,7 @@ namespace frankpiv::backend {
             marker.colors = {get_color_msg(1, 0, 0, 1), get_color_msg(1, 0, 0, 1),
                              get_color_msg(0, 1, 0, 1), get_color_msg(0, 1, 0, 1),
                              get_color_msg(0, 0, 1, 1), get_color_msg(0, 0, 1, 1)};
-        } else if(type == GeneralBackend::POINT_MARKER) {
+        } else if (type == GeneralBackend::POINT_MARKER) {
             marker.pose.position = root;
             marker.scale.x = 0.01;
             marker.scale.y = 0.01;

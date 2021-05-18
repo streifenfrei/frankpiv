@@ -1,13 +1,15 @@
-#include "frankx/frankx.hpp"
+#include "frankr/robot.hpp"
+#include "frankr/motion.hpp"
 
 #include "frankpiv/general_backend.hpp"
 
 namespace frankpiv::backend {
-    class FrankxBackend : public GeneralBackend {
+    class FrankrBackend : public GeneralBackend {
     private:
-        std::string fci_ip;
+        std::string robot_name;
         double dynamic_rel;
-        frankx::Robot *robot;
+        Robot *robot;
+        MotionData *motion_data;
     protected:
         void initialize() override;
 
@@ -18,7 +20,7 @@ namespace frankpiv::backend {
         void moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
 
     public:
-        explicit FrankxBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
+        explicit FrankrBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
     };
 }
 

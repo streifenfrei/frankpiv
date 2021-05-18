@@ -3,40 +3,38 @@
 
 #include "yaml-cpp/yaml.h"
 
-using namespace Eigen;
-
 namespace frankpiv::backend {
     class GeneralBackend {
     private:
-        Vector3d static poseToPYZ(const Affine3d &pose);
+        Eigen::Vector3d static poseToPYZ(const Eigen::Affine3d &pose);
 
         bool visualize;
         ros::Publisher *marker_publisher;
 
-        bool clipPose(Affine3d &pose);
+        bool clipPose(Eigen::Affine3d &pose);
 
         void initRosNode();
 
         void shutdownRosNode();
 
-        void publishMarker(const Affine3d &pose, int id = 0, int type = AXIS_MARKER);
+        void publishMarker(const Eigen::Affine3d &pose, int id = 0, int type = AXIS_MARKER);
 
         void deleteMarker(int id = -1);
 
     protected:
-        Affine3d *reference_frame;
-        Vector4d *current_pyrz;
+        Eigen::Affine3d *reference_frame;
+        Eigen::Vector4d *current_pyrz;
         std::string node_name;
         ros::NodeHandle node_handle;
         bool ros_node_initialized;
 
-        virtual void initialize();
+        virtual void initialize() = 0;
 
-        virtual void finish();
+        virtual void finish() = 0;
 
-        virtual Affine3d currentPose();
+        virtual Eigen::Affine3d currentPose() = 0;
 
-        virtual void moveRobotCartesian(const Affine3d &target_pose);
+        virtual void moveRobotCartesian(const Eigen::Affine3d &target_pose) = 0;
 
     public:
         static const int AXIS_MARKER = 5;
@@ -44,8 +42,8 @@ namespace frankpiv::backend {
         double initial_eef_ppoint_distance;
         double tool_length;
         double max_angle;
-        Vector2d roll_boundaries;
-        Vector2d z_translation_boundaries;
+        Eigen::Vector2d roll_boundaries;
+        Eigen::Vector2d z_translation_boundaries;
         bool clip_to_boundaries;
         bool move_directly;
 
@@ -55,11 +53,11 @@ namespace frankpiv::backend {
 
         void stop();
 
-        void moveToPoint(const Vector3d &point, double roll, const Affine3d *frame = nullptr);
+        void moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame = nullptr);
 
-        void movePYRZ(const Vector4d &pyrz, bool degrees = false);
+        void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false);
 
-        void movePYRZRelative(const Vector4d &pyrz, bool degrees = false);
+        void movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees = false);
     };
 
     class UnattainablePoseException : public std::runtime_error {

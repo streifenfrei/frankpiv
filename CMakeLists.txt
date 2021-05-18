@@ -33,6 +33,8 @@ catkin_package(
 
 add_library(frankpiv SHARED
         src/general_backend.cpp
+        src/frankx_backend.cpp
+        src/frankr_backend.cpp
         )
 
 set(frankx_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/frankx/include")

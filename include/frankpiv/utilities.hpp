@@ -49,18 +49,6 @@ namespace frankpiv::util {
         color.g = g;
         color.b = b;
         color.a = a;
-        return color
+        return color;
     }
-
-
-    inline std::array<double, 3> poseToPYZ(Affine
-    pose) {
-    Eigen::Vector3d translation = pose.data.translation();
-    Eigen::Vector3d angles = pose.angles();
-    double distance = translation.norm();
-    double z_translation = translation(2) >= 0 ? distance : -distance;
-    return {
-    angles(2), angles(1), z_translation
-}
-}
 }

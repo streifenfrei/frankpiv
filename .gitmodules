@@ -1,3 +1,6 @@
 [submodule "frankx"]
-	path = frankx
+	path = dependencies/frankx
 	url = https://github.com/pantor/frankx
+[submodule "yaml-cpp"]
+	path = dependencies/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp

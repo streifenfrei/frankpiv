@@ -11,7 +11,7 @@ namespace frankpiv::backend {
         bool visualize;
         ros::Publisher *marker_publisher;
 
-        bool clipPose(Eigen::Affine3d &pose);
+        bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
 
         void initRosNode();
 
@@ -25,7 +25,7 @@ namespace frankpiv::backend {
         Eigen::Affine3d *reference_frame;
         Eigen::Vector4d *current_pyrz;
         std::string node_name;
-        ros::NodeHandle node_handle;
+        ros::NodeHandle *node_handle;
         bool ros_node_initialized;
 
         virtual void initialize() = 0;
@@ -62,13 +62,28 @@ namespace frankpiv::backend {
 
     class UnattainablePoseException : public std::runtime_error {
         std::string message;
+        Eigen::Vector2d *boundaries;
+        double *value;
     public:
-        UnattainablePoseException(const std::string &message) : runtime_error(message) {
+        explicit UnattainablePoseException(const std::string &message, Eigen::Vector2d *boundaries = nullptr,
+                                           double *value = nullptr) : runtime_error(message) {
             this->message = message;
+            this->boundaries = boundaries;
+            this->value = value;
         }
 
         const char *what() {
-            return message.c_str();
+            std::stringstream what;
+            what << this->message;
+            if (this->boundaries) {
+                what << "\nboundaries: " << this->boundaries;
+            }
+            if (this->value) {
+                what << "\nvalue: " << this->value;
+            }
+            char what_char = *what.str().c_str();
+            const char *what_char_pointer = &what_char;
+            return what_char_pointer;
         }
     };
 }

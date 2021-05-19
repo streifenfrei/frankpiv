@@ -5,7 +5,7 @@ roll_boundaries: [-360, 360]
 z_translation_boundaries: [-0.2, 0.3]
 clip_to_boundaries: true  # if true, clip outsider points to valid boundaries (throw exceptions otherwise)
 move_directly: false  # if true, move to target point on the shortest path. Otherwise do pitch/yaw and z-translation/roll successively (order depends on the relative z-translation)
-rviz_marker: true  # if true, publish Marker messages under /visualization_marker
+visualize: true  # if true, publish Marker messages under /visualization_marker
 
 backend: "moveit"
 frankr:

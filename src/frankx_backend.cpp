@@ -4,13 +4,14 @@
 #include "frankpiv/utilities.hpp"
 
 using namespace Eigen;
+using namespace frankpiv::util;
 
 namespace frankpiv::backend {
     FrankxBackend::FrankxBackend(const YAML::Node &config, std::string node_name) : GeneralBackend(config, std::move(
             node_name)) {
         YAML::Node frankx_config = config["frankx"];
-        this->fci_ip = frankx_config["fci_ip"].as<std::string>();
-        this->dynamic_rel = frankx_config["dynamic_rel"].as<double>();
+        this->fci_ip = get_config_value<std::string>(frankx_config, "fci_ip")[0];
+        this->dynamic_rel = get_config_value<double>(frankx_config, "dynamic_rel")[0];
         this->robot = nullptr;
     }
 
@@ -26,11 +27,11 @@ namespace frankpiv::backend {
         this->robot = nullptr;
     }
 
-    Eigen::Affine3d FrankxBackend::currentPose() {
+    Affine3d FrankxBackend::currentPose() {
         return this->robot->currentPose(frankx::Affine()).data;
     }
 
-    void FrankxBackend::moveRobotCartesian(const Eigen::Affine3d &target_pose) {
+    void FrankxBackend::moveRobotCartesian(const Affine3d &target_pose) {
         frankx::LinearMotion motion = frankx::LinearMotion(movex::WaypointMotion::Affine(target_pose));
         this->robot->move(motion);
     }

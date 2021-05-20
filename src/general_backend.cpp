@@ -7,30 +7,30 @@
 #include <utility>
 #include <unsupported/Eigen/EulerAngles>
 
-using namespace Eigen;
-using namespace frankpiv::util;
 using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
 
 using namespace Eigen;
+using namespace frankpiv::util;
 
 namespace frankpiv::backend {
     GeneralBackend::GeneralBackend(const YAML::Node &config, std::string node_name) {
         // configuration
-        this->initial_eef_ppoint_distance = config["eef_ppoint_distance"].as<double>();
-        this->tool_length = config["tool_length"].as<double>();
-        this->max_angle = config["max_angle"].as<double>();
-        this->roll_boundaries = Vector2d();
-        this->roll_boundaries << config["roll_boundaries"][0].as<double>(), config["roll_boundaries"][1].as<double>();
-        this->z_translation_boundaries = Vector2d();
-        this->z_translation_boundaries
-                << config["z_translation_boundaries"][0].as<double>(), config["z_translation_boundaries"][1].as<double>();
-        this->clip_to_boundaries = config["clip_to_boundaries"].as<bool>();
-        this->move_directly = config["move_directly"].as<bool>();
+        this->initial_eef_ppoint_distance = get_config_value<double>(config, "eef_ppoint_distance")[0];
+        this->tool_length = get_config_value<double>(config, "tool_length")[0];
+        this->max_angle = get_config_value<double>(config, "max_angle")[0];
+        this->roll_boundaries = Vector2d(
+                get_config_value<double>(config, "roll_boundaries")[0],
+                get_config_value<double>(config, "roll_boundaries")[1]);
+        this->z_translation_boundaries = Vector2d(
+                get_config_value<double>(config, "z_translation_boundaries")[0],
+                get_config_value<double>(config, "z_translation_boundaries")[1]);
+        this->clip_to_boundaries = get_config_value<bool>(config, "clip_to_boundaries")[0];
+        this->move_directly = get_config_value<bool>(config, "move_directly")[0];
         // robotic stuff
         this->reference_frame = nullptr;
         this->current_pyrz = nullptr;
         // ROS / visualization
-        this->visualize = config["visualize"].as<bool>();
+        this->visualize = get_config_value<bool>(config, "visualize")[0];
         this->node_name = std::move(node_name);
         this->node_handle = nullptr;
         this->marker_publisher = nullptr;

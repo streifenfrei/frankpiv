@@ -12,6 +12,7 @@
 
 #endif
 
+using namespace Eigen;
 using namespace frankpiv::util;
 
 namespace frankpiv {
@@ -71,15 +72,15 @@ namespace frankpiv {
         (*this->backend).stop();
     }
 
-    void Controller::moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame) const {
+    void Controller::moveToPoint(const Vector3d &point, double roll, const Affine3d *frame) const {
         (*this->backend).moveToPoint(point, roll, frame);
     }
 
-    void Controller::movePYRZ(const Eigen::Vector4d &pyrz, bool degrees) const {
+    void Controller::movePYRZ(const Vector4d &pyrz, bool degrees) const {
         (*this->backend).movePYRZ(pyrz, degrees);
     }
 
-    void Controller::movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees) const {
+    void Controller::movePYRZRelative(const Vector4d &pyrz, bool degrees) const {
         (*this->backend).movePYRZRelative(pyrz, degrees);
     }
 }

@@ -1,5 +1,8 @@
-#include "frankr/robot.hpp"
-#include "frankr/motion.hpp"
+#ifndef FRANKPIV_FRANKR_BACKEND
+#define FRANKPIV_FRANKR_BACKEND
+
+#include "robot.hpp"
+#include "motion.hpp"
 
 #include "frankpiv/general_backend.hpp"
 
@@ -24,4 +27,4 @@ namespace frankpiv::backend {
     };
 }
 
-
+#endif //FRANKR_BACKEND

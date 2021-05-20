@@ -1,3 +1,6 @@
+#ifndef FRANKPIV_FRANKX_BACKEND
+#define FRANKPIV_FRANKX_BACKEND
+
 #include "frankx/frankx.hpp"
 
 #include "frankpiv/general_backend.hpp"
@@ -22,4 +25,4 @@ namespace frankpiv::backend {
     };
 }
 
-
+#endif //FRANKPIV_FRANKX_BACKEND

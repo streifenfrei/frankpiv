@@ -1,3 +1,6 @@
+#ifndef FRANKPIV_GENERAL_BACKEND
+#define FRANKPIV_GENERAL_BACKEND
+
 #include "Eigen/Geometry"
 #include "ros/ros.h"
 
@@ -87,3 +90,5 @@ namespace frankpiv::backend {
         }
     };
 }
+
+#endif //FRANKPIV_GENERAL_BACKEND

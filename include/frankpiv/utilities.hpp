@@ -1,17 +1,62 @@
+#ifndef FRANKPIV_UTILITIES
+#define FRANKPIV_UTILITIES
+
 #include <Eigen/Geometry>
+#include "yaml-cpp/yaml.h"
 #include <geometry_msgs/Point.h>
 #include <std_msgs/ColorRGBA.h>
 
-namespace frankpiv::util {
-    Eigen::Vector3d get_rotation_euler(const Eigen::Affine3d &affine);
+namespace frankpiv {
 
-    double rad(double x);
+    class ConfigError : public std::runtime_error {
+        std::string message;
+    public:
+        explicit ConfigError(const std::string &message) : runtime_error(message) {
+            this->message = message;
+        }
 
-    double clip(double n, double lower, double upper);
+        const char *what() {
+            return this->message.c_str();
+        }
+    };
 
-    double clip(double n, const Eigen::Vector2d &boundaries);
+    namespace util {
+        // geometry
+        Eigen::Vector3d get_rotation_euler(const Eigen::Affine3d &affine);
 
-    geometry_msgs::Point to_point_msg(Eigen::Affine3d affine);
+        double rad(double x);
 
-    std_msgs::ColorRGBA get_color_msg(int r, int g, int b, int a);
+        double clip(double n, double lower, double upper);
+
+        double clip(double n, const Eigen::Vector2d &boundaries);
+
+        // conversion
+        geometry_msgs::Point to_point_msg(Eigen::Affine3d affine);
+
+        std_msgs::ColorRGBA get_color_msg(int r, int g, int b, int a);
+
+        // other
+        template<typename T>
+        std::vector<T> get_config_value(const YAML::Node &config, const std::string &key) {
+            YAML::Node node = config[key];
+            if (!node.IsDefined()) {
+                throw ConfigError("Missing key: " + key);
+            }
+            try {
+                std::vector<T> value;
+                if (node.IsSequence()) {
+                    for (auto && i : node) {
+                        value.push_back(i.as<T>());
+                    }
+                } else {
+                    value.push_back(node.as<T>());
+                }
+                return value;
+            } catch (const YAML::BadConversion &exception) {
+                throw ConfigError("Bad data type for key '" + key + "'. Expected: " + typeid(T).name());
+            }
+        }
+    }
 }
+
+#endif //FRANKPIV_UTILITIES

@@ -42,9 +42,9 @@ namespace frankpiv {
                 // TODO implement
             }
 #ifdef FRANKR
-            else if (backend_name == "frankr") {
-                this->backend = new backend::FrankrBackend(config);
-            }
+                else if (backend_name == "frankr") {
+                    this->backend = new backend::FrankrBackend(config);
+                }
 #endif
 #ifdef FRANKX
             else if (backend_name == "frankx") {
@@ -57,6 +57,10 @@ namespace frankpiv {
         } catch (const YAML::BadConversion &exception) {
             throw ConfigError(exception.msg);
         }
+    }
+
+    Controller::~Controller() {
+        this->stop();
     }
 
     void Controller::start() const {

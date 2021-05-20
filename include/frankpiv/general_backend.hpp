@@ -16,10 +16,6 @@ namespace frankpiv::backend {
 
         bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
 
-        void initRosNode();
-
-        void shutdownRosNode();
-
         void publishMarker(const Eigen::Affine3d &pose, int id = 0, int type = AXIS_MARKER);
 
         void deleteMarker(int id = -1);
@@ -51,6 +47,8 @@ namespace frankpiv::backend {
         bool move_directly;
 
         explicit GeneralBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
+
+        virtual ~GeneralBackend();
 
         void start();
 

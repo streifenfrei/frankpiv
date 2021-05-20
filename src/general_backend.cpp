@@ -37,6 +37,10 @@ namespace frankpiv::backend {
         this->ros_node_initialized = false;
     }
 
+    GeneralBackend::~GeneralBackend() {
+        this->stop();
+    }
+
     void GeneralBackend::initRosNode() {
         if (not this->ros_node_initialized) {
             int argc = 0;

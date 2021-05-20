@@ -13,6 +13,10 @@ namespace frankpiv::backend {
         this->motion_data = nullptr;
     }
 
+    FrankrBackend::~FrankrBackend() {
+        this->stop();
+    }
+
     void FrankrBackend::initialize() {
         this->robot = new Robot(this->robot_name, this->dynamic_rel);
         MotionData _motion_data;

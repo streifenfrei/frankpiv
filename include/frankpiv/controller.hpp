@@ -8,7 +8,9 @@ namespace frankpiv {
     public:
         frankpiv::backend::GeneralBackend *backend;
 
-        explicit Controller(const std::string& config_file);
+        explicit Controller(const std::string &config_file);
+
+        ~Controller();
 
         void start() const;
 

@@ -24,6 +24,8 @@ namespace frankpiv::backend {
 
     public:
         explicit FrankrBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
+
+        ~FrankrBackend() override;
     };
 }
 

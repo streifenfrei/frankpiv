@@ -14,6 +14,10 @@ namespace frankpiv::backend {
         this->robot = nullptr;
     }
 
+    FrankxBackend::~FrankxBackend() {
+        this->stop();
+    }
+
     void FrankxBackend::initialize() {
         this->robot = new frankx::Robot(this->fci_ip, this->dynamic_rel);
     }

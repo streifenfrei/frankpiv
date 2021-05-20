@@ -14,8 +14,7 @@ namespace frankpiv::backend {
     }
 
     void FrankrBackend::initialize() {
-        Robot _robot = Robot(this->robot_name, this->dynamic_rel);
-        this->robot = &_robot;
+        this->robot = new Robot(this->robot_name, this->dynamic_rel);
         MotionData _motion_data;
         this->motion_data = &_motion_data;
     }

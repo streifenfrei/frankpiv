@@ -15,8 +15,7 @@ namespace frankpiv::backend {
     }
 
     void FrankxBackend::initialize() {
-        frankx::Robot _robot = frankx::Robot(this->fci_ip, this->dynamic_rel);
-        this->robot = &_robot;
+        this->robot = new frankx::Robot(this->fci_ip, this->dynamic_rel);
     }
 
     void FrankxBackend::finish() {

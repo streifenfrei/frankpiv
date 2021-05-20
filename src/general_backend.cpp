@@ -41,7 +41,7 @@ namespace frankpiv::backend {
         if (not this->ros_node_initialized) {
             int argc = 0;
             ros::init(argc, nullptr, this->node_name);
-            (*this->node_handle) = ros::NodeHandle();
+            this->node_handle = new ros::NodeHandle();
             this->ros_node_initialized = true;
         }
     }
@@ -62,7 +62,7 @@ namespace frankpiv::backend {
         if (this->visualize) {
             this->initRosNode();
             if (!this->marker_publisher) {
-                *this->marker_publisher = this->node_handle.advertise<visualization_msgs::Marker>(
+                *this->marker_publisher = this->node_handle->advertise<visualization_msgs::Marker>(
                         "visualization_marker", 100);
             }
             this->publishMarker(*this->reference_frame, 0);
@@ -93,7 +93,7 @@ namespace frankpiv::backend {
             angle = point.dot(z_axis) / z_translation;
         }
         angle = -acos(angle);
-        if (out_angle){
+        if (out_angle) {
             *out_angle = angle;
         }
         // clip pose if angle or z-translation are outside the specified boundaries
@@ -122,7 +122,8 @@ namespace frankpiv::backend {
 
     void GeneralBackend::moveToPoint(const Vector3d &point, double roll, const Affine3d *frame) {
         if (roll < this->roll_boundaries(0) || roll > this->roll_boundaries(1)) {
-            throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries, &roll);
+            throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries,
+                                            &roll);
         }
         roll = clip(roll, this->roll_boundaries);
         Affine3d converted_point;
@@ -136,7 +137,8 @@ namespace frankpiv::backend {
         Affine3d target_pose = Affine3d::Identity();
         if (target_point(0) == target_point(1) == target_point(2) != 0) {  // target point is the origin
             if (target_point(2) < 0.) {
-                throw UnattainablePoseException("Point must have positive z value in the pivot point frame", nullptr, &target_point(2));
+                throw UnattainablePoseException("Point must have positive z value in the pivot point frame", nullptr,
+                                                &target_point(2));
             }
             double distance = target_point.norm();
             double angle = -acos(target_point.dot(Vector3d(0, 0, 1)) / distance);
@@ -153,7 +155,8 @@ namespace frankpiv::backend {
             bool clipped = this->clipPose(target_pose, angle);
             if (clipped and !this->clip_to_boundaries) {
                 Vector2d angle_boundaries = Vector2d(this->max_angle, this->max_angle);
-                throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries, angle);
+                throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries,
+                                                angle);
             }
             // translate to the end effector pose and convert to global frame
             target_pose = *this->reference_frame *
@@ -192,11 +195,13 @@ namespace frankpiv::backend {
         }
         if (!this->clip_to_boundaries) {
             if (roll < this->roll_boundaries(0) || roll > this->roll_boundaries(1)) {
-                throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries, &roll);
+                throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries,
+                                                &roll);
             }
             if (z_translation < this->z_translation_boundaries(0) ||
                 z_translation > this->z_translation_boundaries(1)) {
-                throw UnattainablePoseException("Z-translation value is outside of specified boundaries", &this->z_translation_boundaries, &z_translation);
+                throw UnattainablePoseException("Z-translation value is outside of specified boundaries",
+                                                &this->z_translation_boundaries, &z_translation);
             }
         }
         roll = clip(roll, this->roll_boundaries);
@@ -209,7 +214,8 @@ namespace frankpiv::backend {
         if (clipped) {
             if (!this->clip_to_boundaries) {
                 Vector2d angle_boundaries = Vector2d(this->max_angle, this->max_angle);
-                throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries, angle);
+                throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries,
+                                                angle);
             }
             Vector3d pyz = this->poseToPYZ(target_affine);
             pitch = pyz(0);
@@ -251,7 +257,7 @@ namespace frankpiv::backend {
     }
 
     void GeneralBackend::movePYRZRelative(const Vector4d &pyrz, bool degrees) {
-        Vector4d absolute_pyrz = (*this->current_pyrz) + pyrz;
+        Vector4d absolute_pyrz = *this->current_pyrz + pyrz;
         this->movePYRZ(absolute_pyrz, degrees);
     }
 

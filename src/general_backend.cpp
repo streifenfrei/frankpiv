@@ -124,7 +124,7 @@ namespace frankpiv::backend {
         return Vector3d(orientation(0), orientation(1), z_translation);
     }
 
-    void GeneralBackend::moveToPoint(const Vector3d &point, double roll, const Affine3d *frame) {
+    void GeneralBackend::moveToPoint(const Vector3d &point, double roll, const Affine3d *frame = nullptr) {
         if (roll < this->roll_boundaries(0) || roll > this->roll_boundaries(1)) {
             throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries,
                                             &roll);
@@ -186,7 +186,7 @@ namespace frankpiv::backend {
         }
     }
 
-    void GeneralBackend::movePYRZ(const Vector4d &pyrz, bool degrees) {
+    void GeneralBackend::movePYRZ(const Vector4d &pyrz, bool degrees = false) {
         // prepare input
         double pitch = pyrz(0);
         double yaw = pyrz(1);
@@ -260,7 +260,7 @@ namespace frankpiv::backend {
         }
     }
 
-    void GeneralBackend::movePYRZRelative(const Vector4d &pyrz, bool degrees) {
+    void GeneralBackend::movePYRZRelative(const Vector4d &pyrz, bool degrees = false) {
         Vector4d absolute_pyrz = *this->current_pyrz + pyrz;
         this->movePYRZ(absolute_pyrz, degrees);
     }

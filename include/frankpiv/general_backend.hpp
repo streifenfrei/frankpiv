@@ -50,15 +50,15 @@ namespace frankpiv::backend {
 
         virtual ~GeneralBackend();
 
-        void start();
+        virtual void start();
 
-        void stop();
+        virtual void stop();
 
-        void moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame = nullptr);
+        virtual void moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame);
 
-        void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false);
+        virtual void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees);
 
-        void movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees = false);
+        virtual void movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees);
     };
 
     class UnattainablePoseException : public std::runtime_error {

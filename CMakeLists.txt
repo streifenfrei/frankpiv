@@ -55,6 +55,7 @@ add_library(
         src/controller.cpp
         src/general_backend.cpp
         src/utilities.cpp
+        src/moveit_backend.cpp
         ${BACKEND_SOURCES}
 )
 

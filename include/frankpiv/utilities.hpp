@@ -5,6 +5,8 @@
 #include "yaml-cpp/yaml.h"
 #include <geometry_msgs/Point.h>
 #include <std_msgs/ColorRGBA.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <boost/thread/mutex.hpp>
 
 namespace frankpiv {
 
@@ -31,7 +33,13 @@ namespace frankpiv {
         double clip(double n, const Eigen::Vector2d &boundaries);
 
         // conversion
-        geometry_msgs::Point to_point_msg(Eigen::Affine3d affine);
+        geometry_msgs::Point to_point_msg(const Eigen::Affine3d &affine);
+
+        geometry_msgs::Quaternion to_quat_msg(const Eigen::Matrix3d &rotation);
+
+        geometry_msgs::Pose to_pose_msg(const Eigen::Affine3d &affine);
+
+        Eigen::Affine3d to_affine(const geometry_msgs::PoseStamped &msg);
 
         std_msgs::ColorRGBA get_color_msg(int r, int g, int b, int a);
 
@@ -45,7 +53,7 @@ namespace frankpiv {
             try {
                 std::vector<T> value;
                 if (node.IsSequence()) {
-                    for (auto && i : node) {
+                    for (auto &&i : node) {
                         value.push_back(i.as<T>());
                     }
                 } else {

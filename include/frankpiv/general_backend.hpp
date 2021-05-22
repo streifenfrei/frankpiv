@@ -7,12 +7,24 @@
 #include "yaml-cpp/yaml.h"
 
 namespace frankpiv::backend {
-    class GeneralBackend {
+    class ROSNode {
+    public:
+        explicit ROSNode(const std::string &node_name) {
+            int argc = 0;
+            ros::init(argc, nullptr, node_name);
+        }
+
+        ~ROSNode() {
+            ros::shutdown();
+        }
+    };
+
+    class GeneralBackend : ROSNode{
     private:
         Eigen::Vector3d static poseToPYZ(const Eigen::Affine3d &pose);
 
         bool visualize;
-        ros::Publisher *marker_publisher;
+        ros::Publisher marker_publisher;
 
         bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
 
@@ -21,11 +33,10 @@ namespace frankpiv::backend {
         void deleteMarker(int id = -1);
 
     protected:
-        Eigen::Affine3d *reference_frame;
-        Eigen::Vector4d *current_pyrz;
-        std::string node_name;
-        ros::NodeHandle *node_handle;
-        bool ros_node_initialized;
+        Eigen::Affine3d reference_frame;
+        Eigen::Vector4d current_pyrz;
+        ros::NodeHandle node_handle;
+        ros::AsyncSpinner spinner {1};
 
         virtual void initialize() = 0;
 
@@ -46,7 +57,7 @@ namespace frankpiv::backend {
         bool clip_to_boundaries;
         bool move_directly;
 
-        explicit GeneralBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
+        explicit GeneralBackend(const YAML::Node &config, const std::string& node_name = "pivot_controller");
 
         virtual ~GeneralBackend();
 
@@ -54,11 +65,11 @@ namespace frankpiv::backend {
 
         virtual void stop();
 
-        virtual void moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame);
+        virtual void moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame = nullptr);
 
-        virtual void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees);
+        virtual void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false);
 
-        virtual void movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees);
+        virtual void movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees = false);
     };
 
     class UnattainablePoseException : public std::runtime_error {

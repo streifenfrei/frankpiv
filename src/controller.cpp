@@ -1,16 +1,16 @@
 #include "yaml-cpp/yaml.h"
 
 #include "frankpiv/controller.hpp"
-
+#include "frankpiv/utilities.hpp"
+#include "frankpiv/moveit_backend.hpp"
 #ifdef FRANKR
 #include "frankpiv/frankr_backend.hpp"
 #endif
 #ifdef FRANKX
-
 #include "frankpiv/frankx_backend.hpp"
-#include "frankpiv/utilities.hpp"
-
 #endif
+
+
 
 using namespace Eigen;
 using namespace frankpiv::util;
@@ -40,7 +40,7 @@ namespace frankpiv {
                     get_config_value<double>(config, "eef_ppoint_distance")[0]);
             std::string backend_name = get_config_value<std::string>(config, "backend")[0];
             if (backend_name == "moveit") {
-                // TODO implement
+                this->backend = new backend::MoveitBackend(config);
             }
 #ifdef FRANKR
                 else if (backend_name == "frankr") {

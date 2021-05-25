@@ -132,7 +132,7 @@ namespace frankpiv::backend {
             target_pose = target_pose * Translation3d(0, 0, z_translation);
         }
         if (this->move_directly) {
-            double *angle;
+            auto *angle = new double();
             bool clipped = this->clipPose(target_pose, angle);
             if (clipped and !this->clip_to_boundaries) {
                 Vector2d angle_boundaries = Vector2d(this->max_angle, this->max_angle);
@@ -189,7 +189,7 @@ namespace frankpiv::backend {
         // calculate target pose
         double new_eef_ppoint_distance = this->initial_eef_ppoint_distance - z_translation;
         Affine3d target_affine = Euler(pitch, yaw, 0).toRotationMatrix() * Translation3d(0, 0, z_translation);
-        double *angle;
+        auto *angle = new double();
         bool clipped = this->clipPose(target_affine, angle);
         if (clipped) {
             if (!this->clip_to_boundaries) {

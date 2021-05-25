@@ -12,7 +12,7 @@ using namespace Eigen;
 using namespace frankpiv::util;
 
 namespace frankpiv::backend {
-    GeneralBackend::GeneralBackend(const YAML::Node &config, const std::string& node_name) : ROSNode(node_name){
+    GeneralBackend::GeneralBackend(const YAML::Node &config, const std::string &node_name) : ROSNode(node_name) {
         // configuration
         this->initial_eef_ppoint_distance = get_config_value<double>(config, "eef_ppoint_distance")[0];
         this->tool_length = get_config_value<double>(config, "tool_length")[0];
@@ -32,7 +32,7 @@ namespace frankpiv::backend {
         this->visualize = get_config_value<bool>(config, "visualize")[0];
         this->spinner.start();
         this->node_handle = ros::NodeHandle();
-        this->marker_publisher =  this->node_handle.advertise<visualization_msgs::Marker>("visualization_marker", 100);
+        this->marker_publisher = this->node_handle.advertise<visualization_msgs::Marker>("visualization_marker", 100);
     }
 
     GeneralBackend::~GeneralBackend() {
@@ -146,7 +146,7 @@ namespace frankpiv::backend {
             if (this->visualize) {
                 this->publishMarker(target_pose, 1);
                 this->publishMarker(target_pose * Translation3d(0, 0, this->tool_length),
-                                    frankpiv::backend::GeneralBackend::POINT_MARKER, 2);
+                                    2, frankpiv::backend::GeneralBackend::POINT_MARKER);
             }
             this->moveRobotCartesian(target_pose);
             if (this->visualize) {
@@ -202,13 +202,13 @@ namespace frankpiv::backend {
             yaw = pyz(1);
         }
         target_affine = this->reference_frame * (target_affine *
-                                                  (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
-                                                   Euler(0, 0, roll).toRotationMatrix()));
+                                                 (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
+                                                  Euler(0, 0, roll).toRotationMatrix()));
         // move the robot
         if (this->visualize) {
             this->publishMarker(target_affine, 1);
             this->publishMarker(target_affine * Translation3d(0, 0, this->tool_length),
-                                frankpiv::backend::GeneralBackend::POINT_MARKER, 2);
+                                2, frankpiv::backend::GeneralBackend::POINT_MARKER);
         }
         if (!this->move_directly) {
             double current_pitch = this->current_pyrz(0);
@@ -219,12 +219,12 @@ namespace frankpiv::backend {
             // if relative z-translation is negative do it before pitch and yaw
             Affine3d intermediate_affine;
             intermediate_affine = new_eef_ppoint_distance > current_eef_ppoint_distance ?
-                                  this->reference_frame * Euler(current_pitch, current_yaw, 0).toRotationMatrix() *
-                                  Translation3d(0, 0, -current_eef_ppoint_distance) *
-                                  Euler(0, 0, roll).toRotationMatrix() :
-                                  this->reference_frame * Euler(pitch, yaw, 0).toRotationMatrix() *
-                                  Translation3d(0, 0, -current_eef_ppoint_distance) *
-                                  Euler(0, 0, current_roll).toRotationMatrix();
+                                  this->reference_frame * (Euler(current_pitch, current_yaw, 0).toRotationMatrix() *
+                                                           (Translation3d(0, 0, -new_eef_ppoint_distance) *
+                                                            Euler(0, 0, roll).toRotationMatrix())) :
+                                  this->reference_frame * (Euler(pitch, yaw, 0).toRotationMatrix() *
+                                                           (Translation3d(0, 0, -current_eef_ppoint_distance) *
+                                                            Euler(0, 0, current_roll).toRotationMatrix()));
             this->moveRobotCartesian(intermediate_affine);
         }
         this->moveRobotCartesian(target_affine);

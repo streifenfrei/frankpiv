@@ -114,9 +114,10 @@ namespace frankpiv::backend {
             converted_point = *frame * converted_point;
             converted_point = this->reference_frame.inverse() * converted_point;
         }
+        this->publishMarker(converted_point, 5, POINT_MARKER);
         Vector3d target_point = converted_point.translation();
         Affine3d target_pose = Affine3d::Identity();
-        if (target_point(0) == target_point(1) == target_point(2) != 0) {  // target point is the origin
+        if (target_point(0) != 0 || target_point(1) != 0 || target_point(2) != 0) {  // target point is the origin
             if (target_point(2) < 0.) {
                 throw UnattainablePoseException("Point must have positive z value in the pivot point frame", nullptr,
                                                 &target_point(2));
@@ -131,6 +132,7 @@ namespace frankpiv::backend {
             double z_translation = distance - this->tool_length + this->initial_eef_ppoint_distance;
             target_pose = target_pose * Translation3d(0, 0, z_translation);
         }
+        this->publishMarker(target_pose, 6);
         if (this->move_directly) {
             auto *angle = new double();
             bool clipped = this->clipPose(target_pose, angle);

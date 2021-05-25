@@ -9,6 +9,9 @@ namespace frankpiv::backend {
     class MoveitBackend : public GeneralBackend {
     private:
         static constexpr int SPINLOCK_WAIT = 1000;
+        float eef_step;
+        float jump_threshold;
+        bool async_motion;
         std::string robot_name;
         moveit::planning_interface::MoveGroupInterface *robot;
         std::list<boost::thread::id> threads_list;
@@ -27,10 +30,8 @@ namespace frankpiv::backend {
         void moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
 
     public:
-        float EEF_STEP = 0.01;
-        float JUMP_THRESHOLD = 10;
+
         int SHUTDOWN_TIMEOUT = 5000;
-        bool async_motion;
 
         explicit MoveitBackend(const YAML::Node &config, const std::string& node_name = "pivot_controller", bool async_motion = false);
 

@@ -16,3 +16,5 @@ frankx:
   dynamic_rel: 0.2
 moveit:
   robot_name: "panda_arm"
+  eef_step: 0.01
+  jump_threshold: 2

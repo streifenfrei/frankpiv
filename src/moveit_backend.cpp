@@ -8,6 +8,8 @@ namespace frankpiv::backend {
     MoveitBackend::MoveitBackend(const YAML::Node &config, const std::string& node_name, bool async_motion) : GeneralBackend(
             config, node_name) {
         YAML::Node moveit_config = config["moveit"];
+        this->eef_step = get_config_value<float>(moveit_config, "eef_step")[0];
+        this->jump_threshold = get_config_value<float>(moveit_config, "jump_threshold")[0];
         this->robot_name = get_config_value<std::string>(moveit_config, "robot_name")[0];
         this->robot = nullptr;
         this->async_motion = async_motion;
@@ -48,7 +50,7 @@ namespace frankpiv::backend {
             std::vector<geometry_msgs::Pose> waypoints;
             waypoints.push_back(to_pose_msg(target_pose));
             moveit_msgs::RobotTrajectory trajectory;
-            this->robot->computeCartesianPath(waypoints, this->EEF_STEP, this->JUMP_THRESHOLD, trajectory);
+            this->robot->computeCartesianPath(waypoints, this->eef_step, this->jump_threshold, trajectory);
             if (!this->terminating) {
                 this->robot->execute(trajectory);
             }

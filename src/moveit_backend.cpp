@@ -39,9 +39,12 @@ namespace frankpiv::backend {
     }
 
     void MoveitBackend::moveRobotCartesian(const Eigen::Affine3d &target_pose) {
-        boost::thread::id most_recent_thread = *this->threads_list.end();
-        bool is_most_recent = boost::this_thread::get_id() == most_recent_thread;
-        if (is_most_recent) {
+        bool move = true;
+        if (this->async_motion) {
+            boost::thread::id most_recent_thread = *this->threads_list.end();
+            move = boost::this_thread::get_id() == most_recent_thread;
+        }
+        if (move) {
             std::vector<geometry_msgs::Pose> waypoints;
             waypoints.push_back(to_pose_msg(target_pose));
             moveit_msgs::RobotTrajectory trajectory;

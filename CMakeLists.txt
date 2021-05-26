@@ -22,9 +22,7 @@ add_subdirectory(dependencies)
 
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package(Boost REQUIRED COMPONENTS thread)
-if (PYTHON_BINDING)
-    find_package(pybind11 REQUIRED)
-endif()
+
 
 # CATKIN
 set(CATKIN_ENABLE_TESTING OFF)
@@ -38,7 +36,10 @@ find_package(
         moveit_ros_planning_interface
 )
 
-catkin_python_setup()
+if (PYTHON_BINDING)
+    find_package(pybind11 REQUIRED)
+    catkin_python_setup()
+endif()
 
 catkin_package(
         INCLUDE_DIRS
@@ -73,11 +74,15 @@ target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIB
 # EXAMPLE
 add_executable(example examples/example.cpp)
 target_link_libraries(example ${PROJECT_NAME})
-pybind11_add_module(frankpyv src/frankpiv/native/python.cpp)
-target_link_libraries(frankpyv PUBLIC frankpiv)
-set_target_properties(frankpyv PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
-add_custom_command(
-        TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/frankpiv/default_config.yml
-        ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
+
+# PYTHON
+if (PYTHON_BINDING)
+    pybind11_add_module(frankpyv src/frankpiv/native/python.cpp)
+    target_link_libraries(frankpyv PUBLIC frankpiv)
+    set_target_properties(frankpyv PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
+    add_custom_command(
+            TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/frankpiv/default_config.yml
+            ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
+endif()

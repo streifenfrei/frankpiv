@@ -32,6 +32,8 @@ find_package(
         moveit_ros_planning_interface
 )
 
+catkin_python_setup()
+
 catkin_package(
         INCLUDE_DIRS
         include
@@ -48,18 +50,18 @@ catkin_package(
 # FRANKPIV
 set(BACKEND_SOURCES "")
 foreach (BACKEND ${BACKENDS})
-    list(APPEND BACKEND_SOURCES src/${BACKEND}_backend.cpp)
+    list(APPEND BACKEND_SOURCES src/frankpiv/native/${BACKEND}_backend.cpp)
 endforeach ()
 add_library(
         ${PROJECT_NAME} SHARED
-        src/controller.cpp
-        src/general_backend.cpp
-        src/utilities.cpp
-        src/moveit_backend.cpp
+        src/frankpiv/native/controller.cpp
+        src/frankpiv/native/general_backend.cpp
+        src/frankpiv/native/utilities.cpp
+        src/frankpiv/native/moveit_backend.cpp
         ${BACKEND_SOURCES}
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} include)
 target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS})
 
 # EXAMPLE

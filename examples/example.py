@@ -19,9 +19,8 @@ if __name__ == '__main__':
             yaw = (random.random() - 0.5) * 0.7 * np.pi
             roll = (random.random() - 0.5) * 0.8 * np.pi
             z_translation = (random.random() - 0.5) * 0.05
-            controller.move_pyrz([pitch, yaw, roll, z_translation])
-        # TODO part below is broken. Needs to be fixed in the binding
+            controller.move_pyrz([pitch, yaw, roll, z_translation], False)
         # move to some point in the pivot point frame (reference frame of the controller)
-        controller.move_to_point([0.05, -0.05, 0.1], roll=np.pi)
+        controller.move_to_point([0.05, -0.05, 0.1], np.pi)
         # move to some point in the global frame
-        controller.move_to_point([0.2, 0.1, 0.15], frame=[0, 0, 0, 0, 0, 0], roll=np.pi)
+        controller.move_to_point([0.2, 0.1, 0.15], np.pi, [0, 0, 0, 0, 0, 0])

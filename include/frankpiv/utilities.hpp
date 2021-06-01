@@ -41,6 +41,8 @@ namespace frankpiv {
 
         Eigen::Affine3d to_affine(const geometry_msgs::PoseStamped &msg);
 
+        Eigen::Affine3d to_affine(const std::array<double, 6> &array);
+
         std_msgs::ColorRGBA get_color_msg(int r, int g, int b, int a);
 
         // other

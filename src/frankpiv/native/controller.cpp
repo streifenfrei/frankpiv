@@ -76,12 +76,32 @@ namespace frankpiv {
         (*this->backend).moveToPoint(point, roll, frame);
     }
 
+    void Controller::moveToPoint(std::array<double, 3> point, double roll, const std::optional<std::array<double, 6>> frame) const {
+        const Vector3d point_vector = Vector3d(point[0], point[1], point[2]);
+        Affine3d *frame_affine = nullptr;
+        if (frame.has_value()) {
+            frame_affine = new Affine3d();
+            *frame_affine = to_affine(*frame);
+        }
+        this->moveToPoint(point_vector, roll, frame_affine);
+    }
+
     void Controller::movePYRZ(const Vector4d &pyrz, bool degrees) const {
         (*this->backend).movePYRZ(pyrz, degrees);
     }
 
+    void Controller::movePYRZ(std::array<double, 4> pyrz, bool degrees) const {
+        Vector4d pyrz_vector = Vector4d(pyrz[0], pyrz[1], pyrz[2], pyrz[3]);
+        this->movePYRZ(pyrz_vector, degrees);
+    }
+
     void Controller::movePYRZRelative(const Vector4d &pyrz, bool degrees) const {
         (*this->backend).movePYRZRelative(pyrz, degrees);
+    }
+
+    void Controller::movePYRZRelative(std::array<double, 4> pyrz, bool degrees) const {
+        Vector4d pyrz_vector = Vector4d(pyrz[0], pyrz[1], pyrz[2], pyrz[3]);
+        this->movePYRZ(pyrz_vector, degrees);
     }
 }
 

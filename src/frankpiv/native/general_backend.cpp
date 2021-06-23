@@ -16,10 +16,10 @@ namespace frankpiv::backend {
         // configuration
         this->initial_eef_ppoint_distance = get_config_value<double>(config, "eef_ppoint_distance")[0];
         this->tool_length = get_config_value<double>(config, "tool_length")[0];
-        this->max_angle = get_config_value<double>(config, "max_angle")[0];
+        this->max_angle = rad(get_config_value<double>(config, "max_angle")[0]);
         this->roll_boundaries = Vector2d(
-                get_config_value<double>(config, "roll_boundaries")[0],
-                get_config_value<double>(config, "roll_boundaries")[1]);
+                rad(get_config_value<double>(config, "roll_boundaries")[0]),
+                rad(get_config_value<double>(config, "roll_boundaries")[1]));
         this->z_translation_boundaries = Vector2d(
                 get_config_value<double>(config, "z_translation_boundaries")[0],
                 get_config_value<double>(config, "z_translation_boundaries")[1]);
@@ -66,7 +66,7 @@ namespace frankpiv::backend {
         double z_translation = point[2] >= 0. ? point.norm() : -point.norm();
         Vector3d z_axis = point[2] >= 0. ? Vector3d(0, 0, 1) : Vector3d(0, 0, -1);
         double angle;
-        if (point[0] == point[1] == point[2] == 0.) { // point lies in the origin -> add offset to calculate angle
+        if (point[0] == 0. && point[1] == 0. && point[2] == 0.) { // point lies in the origin -> add offset to calculate angle
             Vector3d point_offset;
             point_offset = (pose_local * Translation3d(0, 0, 1)).translation();
             angle = point_offset.dot(z_axis);
@@ -85,6 +85,7 @@ namespace frankpiv::backend {
             angle = clip(angle, -this->max_angle, this->max_angle);
             z_translation = clip(z_translation, this->z_translation_boundaries);
             Vector3d rotation_axis = point.cross(z_axis);
+            rotation_axis /= rotation_axis.norm();
             Affine3d clipped_pose;
             clipped_pose = AngleAxisd(angle, rotation_axis) * Translation3d(0, 0, z_translation);
             pose = clipped_pose;
@@ -114,7 +115,6 @@ namespace frankpiv::backend {
             converted_point = *frame * converted_point;
             converted_point = this->reference_frame.inverse() * converted_point;
         }
-        this->publishMarker(converted_point, 5, POINT_MARKER);
         Vector3d target_point = converted_point.translation();
         Affine3d target_pose = Affine3d::Identity();
         if (target_point(0) != 0 || target_point(1) != 0 || target_point(2) != 0) {  // target point is the origin
@@ -126,13 +126,13 @@ namespace frankpiv::backend {
             double angle = -acos(target_point.dot(Vector3d(0, 0, 1)) / distance);
             if (angle != 0.) {
                 // we rotate and translate to the target point to get the target rotation
-                Vector3d rotation_axis = point.cross(Vector3d(0, 0, 1));
-                target_pose = AngleAxis(angle, rotation_axis);
+                Vector3d rotation_axis = target_point.cross(Vector3d(0, 0, 1));
+                rotation_axis /= rotation_axis.norm();
+                target_pose = AngleAxis(angle, rotation_axis).toRotationMatrix();
             }
             double z_translation = distance - this->tool_length + this->initial_eef_ppoint_distance;
             target_pose = target_pose * Translation3d(0, 0, z_translation);
         }
-        this->publishMarker(target_pose, 6);
         if (this->move_directly) {
             auto *angle = new double();
             bool clipped = this->clipPose(target_pose, angle);
@@ -141,10 +141,11 @@ namespace frankpiv::backend {
                 throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries,
                                                 angle);
             }
+
             // translate to the end effector pose and convert to global frame
-            target_pose = this->reference_frame *
-                          (target_pose * (Translation3d(0, 0, -this->initial_eef_ppoint_distance)) *
-                           Euler(0, 0, roll).toRotationMatrix());
+            target_pose = this->reference_frame * (target_pose *
+                    (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
+                    Euler(0, 0, roll).toRotationMatrix()));
             if (this->visualize) {
                 this->publishMarker(target_pose, 1);
                 this->publishMarker(target_pose * Translation3d(0, 0, this->tool_length),
@@ -275,7 +276,7 @@ namespace frankpiv::backend {
     }
 
     void GeneralBackend::deleteMarker(int id) {
-        int action = id < 0 ? 2 : 3;
+        int action = id < 0 ? 3 : 2;
         visualization_msgs::Marker marker;
         marker.id = id;
         marker.action = action;

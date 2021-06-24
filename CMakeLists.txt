@@ -35,6 +35,12 @@ find_package(
         moveit_ros_planning
         moveit_ros_planning_interface
 )
+find_package(rviz_visual_tools)
+if (rviz_visual_tools_FOUND)
+    add_compile_definitions(VISUALIZATION)
+    list(APPEND catkin_INCLUDE_DIRS ${rviz_visual_tools_INCLUDE_DIRS})
+    list(APPEND catkin_LIBRARIES ${rviz_visual_tools_LIBRARIES})
+endif ()
 
 if (PYTHON_BINDING)
     find_package(pybind11 REQUIRED)
@@ -46,13 +52,17 @@ catkin_package(
         include
         CATKIN_DEPENDS
         roscpp
-        message_runtime
         std_msgs
         geometry_msgs
         moveit_core
         moveit_ros_planning
         moveit_ros_planning_interface
+        DEPENDS
+        EIGEN3
+        Boost
 )
+
+
 
 # FRANKPIV
 set(BACKEND_SOURCES "")
@@ -67,7 +77,6 @@ add_library(
         src/frankpiv/native/moveit_backend.cpp
         ${BACKEND_SOURCES}
 )
-
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} include)
 target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS})
 

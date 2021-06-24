@@ -10,7 +10,6 @@ namespace frankpiv::backend {
         YAML::Node moveit_config = config["moveit"];
         this->eef_step = get_config_value<float>(moveit_config, "eef_step")[0];
         this->jump_threshold = get_config_value<float>(moveit_config, "jump_threshold")[0];
-        this->robot_name = get_config_value<std::string>(moveit_config, "robot_name")[0];
         this->robot = nullptr;
         this->async_motion = async_motion;
         this->threads_list = std::list<boost::thread::id>();

@@ -3,7 +3,9 @@
 
 #include "Eigen/Geometry"
 #include "ros/ros.h"
-
+#ifdef VISUALIZATION
+#include <rviz_visual_tools/rviz_visual_tools.h>
+#endif
 #include "yaml-cpp/yaml.h"
 
 namespace frankpiv::backend {
@@ -21,22 +23,22 @@ namespace frankpiv::backend {
 
     class GeneralBackend : ROSNode{
     private:
+#ifdef VISUALIZATION
+        bool visualize;
+        rviz_visual_tools::RvizVisualToolsPtr visual_tools;
+
+        void reset_markers();
+#endif
         Eigen::Vector3d static poseToPYZ(const Eigen::Affine3d &pose);
 
-        bool visualize;
-        ros::Publisher marker_publisher;
-
         bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
-
-        void publishMarker(const Eigen::Affine3d &pose, int id = 0, int type = AXIS_MARKER);
-
-        void deleteMarker(int id = -1);
 
     protected:
         Eigen::Affine3d reference_frame;
         Eigen::Vector4d current_pyrz;
         ros::NodeHandle node_handle;
         ros::AsyncSpinner spinner {1};
+        std::string robot_name;
 
         virtual void initialize() = 0;
 
@@ -47,8 +49,6 @@ namespace frankpiv::backend {
         virtual void moveRobotCartesian(const Eigen::Affine3d &target_pose) = 0;
 
     public:
-        static const int AXIS_MARKER = 5;
-        static const int POINT_MARKER = 2;
         double initial_eef_ppoint_distance;
         double tool_length;
         double max_angle;

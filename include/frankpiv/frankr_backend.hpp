@@ -9,7 +9,6 @@
 namespace frankpiv::backend {
     class FrankrBackend : public GeneralBackend {
     private:
-        std::string robot_name;
         double dynamic_rel;
         Robot *robot;
         MotionData *motion_data;

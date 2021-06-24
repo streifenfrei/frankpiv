@@ -1,7 +1,4 @@
 #include "ros/ros.h"
-#include "geometry_msgs/Point.h"
-#include "std_msgs/Header.h"
-#include "visualization_msgs/Marker.h"
 #include "frankpiv/general_backend.hpp"
 #include "frankpiv/utilities.hpp"
 #include <unsupported/Eigen/EulerAngles>
@@ -26,37 +23,38 @@ namespace frankpiv::backend {
         this->clip_to_boundaries = get_config_value<bool>(config, "clip_to_boundaries")[0];
         this->move_directly = get_config_value<bool>(config, "move_directly")[0];
         // robotic stuff
+        this->robot_name = get_config_value<std::string>(config, "robot_name")[0];
         this->reference_frame = Affine3d();
         this->current_pyrz = Vector4d();
         // ROS / visualization
-        this->visualize = get_config_value<bool>(config, "visualize")[0];
         this->spinner.start();
         this->node_handle = ros::NodeHandle();
-        this->marker_publisher = this->node_handle.advertise<visualization_msgs::Marker>("visualization_marker", 100);
+#ifdef VISUALIZATION
+        this->visualize = get_config_value<bool>(config, "visualize")[0];
+        std::string topic = get_config_value<std::string>(config, "marker_topic")[0];
+        this->visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world",topic, this->node_handle));
+#endif
     }
 
     GeneralBackend::~GeneralBackend() {
         this->stop();
         this->spinner.stop();
-        this->marker_publisher.shutdown();
         this->node_handle.shutdown();
-
     }
 
     void GeneralBackend::start() {
         this->initialize();
         this->reference_frame = this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance);
         this->current_pyrz = Vector4d();
+#ifdef VISUALIZATION
         if (this->visualize) {
-            this->publishMarker(this->reference_frame, 0);
+            this->reset_markers();
         }
+#endif
     }
 
     void GeneralBackend::stop() {
         this->finish();
-        if (this->visualize) {
-            this->deleteMarker();
-        }
     }
 
     bool GeneralBackend::clipPose(Affine3d &pose, double *out_angle) {
@@ -146,16 +144,19 @@ namespace frankpiv::backend {
             target_pose = this->reference_frame * (target_pose *
                     (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
                     Euler(0, 0, roll).toRotationMatrix()));
+#ifdef VISUALIZATION
             if (this->visualize) {
-                this->publishMarker(target_pose, 1);
-                this->publishMarker(target_pose * Translation3d(0, 0, this->tool_length),
-                                    2, frankpiv::backend::GeneralBackend::POINT_MARKER);
+                this->visual_tools->publishAxis(to_pose_msg(target_pose));
+                this->visual_tools->publishSphere(to_pose_msg(target_pose * Translation3d(0, 0, this->tool_length)));
+                this->visual_tools->trigger();
             }
+#endif
             this->moveRobotCartesian(target_pose);
+#ifdef VISUALIZATION
             if (this->visualize) {
-                this->deleteMarker(1);
-                this->deleteMarker(2);
+                this->reset_markers();
             }
+#endif
             Vector3d pyz = this->poseToPYZ(target_pose);
             this->current_pyrz = Vector4d(pyz(0), pyz(1), roll, pyz(2));
         } else {
@@ -208,11 +209,13 @@ namespace frankpiv::backend {
                                                  (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
                                                   Euler(0, 0, roll).toRotationMatrix()));
         // move the robot
+#ifdef VISUALIZATION
         if (this->visualize) {
-            this->publishMarker(target_affine, 1);
-            this->publishMarker(target_affine * Translation3d(0, 0, this->tool_length),
-                                2, frankpiv::backend::GeneralBackend::POINT_MARKER);
+            this->visual_tools->publishAxis(to_pose_msg(target_affine));
+            this->visual_tools->publishSphere(to_pose_msg(target_affine * Translation3d(0, 0, this->tool_length)));
+            this->visual_tools->trigger();
         }
+#endif
         if (!this->move_directly) {
             double current_pitch = this->current_pyrz(0);
             double current_yaw = this->current_pyrz(1);
@@ -232,10 +235,11 @@ namespace frankpiv::backend {
         }
         this->moveRobotCartesian(target_affine);
         this->current_pyrz = Vector4d(pitch, yaw, roll, z_translation);
+#ifdef VISUALIZATION
         if (this->visualize) {
-            this->deleteMarker(1);
-            this->deleteMarker(2);
+            this->reset_markers();
         }
+#endif
     }
 
     void GeneralBackend::movePYRZRelative(const Vector4d &pyrz, bool degrees) {
@@ -243,43 +247,11 @@ namespace frankpiv::backend {
         this->movePYRZ(absolute_pyrz, degrees);
     }
 
-    // REPLACE WITH rviz_visual_tools
-    void GeneralBackend::publishMarker(const Affine3d &pose, int id, int type) {
-        std_msgs::Header header;
-        header.frame_id = "world";
-        header.stamp = ros::Time::now();
-        geometry_msgs::Point root = to_point_msg(pose);
-        visualization_msgs::Marker marker;
-        marker.header = header;
-        marker.id = id;
-        marker.type = type;
-        marker.action = 0;
-        if (type == GeneralBackend::AXIS_MARKER) {
-            marker.scale.x = 0.01;
-            geometry_msgs::Point point_x = to_point_msg(pose * Translation3d(0.05, 0, 0));
-            geometry_msgs::Point point_y = to_point_msg(pose * Translation3d(0, 0.05, 0));
-            geometry_msgs::Point point_z = to_point_msg(pose * Translation3d(0, 0, 0.05));
-            marker.points = {root, point_x, root, point_y, root, point_z};
-            marker.colors = {get_color_msg(1, 0, 0, 1), get_color_msg(1, 0, 0, 1),
-                             get_color_msg(0, 1, 0, 1), get_color_msg(0, 1, 0, 1),
-                             get_color_msg(0, 0, 1, 1), get_color_msg(0, 0, 1, 1)};
-        } else if (type == GeneralBackend::POINT_MARKER) {
-            marker.pose.position = root;
-            marker.scale.x = 0.01;
-            marker.scale.y = 0.01;
-            marker.scale.z = 0.01;
-            marker.color = get_color_msg(0, 0, 0, 1);
-        } else {
-            throw std::invalid_argument("No such marker type");
-        }
-        this->marker_publisher.publish(marker);
+#ifdef VISUALIZATION
+    void GeneralBackend::reset_markers() {
+        this->visual_tools->deleteAllMarkers();
+        this->visual_tools->publishAxis(to_pose_msg(this->reference_frame));
+        this->visual_tools->trigger();
     }
-
-    void GeneralBackend::deleteMarker(int id) {
-        int action = id < 0 ? 3 : 2;
-        visualization_msgs::Marker marker;
-        marker.id = id;
-        marker.action = action;
-        this->marker_publisher.publish(marker);
-    }
+#endif
 }

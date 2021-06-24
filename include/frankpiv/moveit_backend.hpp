@@ -12,7 +12,6 @@ namespace frankpiv::backend {
         float eef_step;
         float jump_threshold;
         bool async_motion;
-        std::string robot_name;
         moveit::planning_interface::MoveGroupInterface *robot;
         std::list<boost::thread::id> threads_list;
         boost::mutex threads_list_lock;

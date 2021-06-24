@@ -10,7 +10,6 @@ namespace frankpiv::backend {
     FrankrBackend::FrankrBackend(const YAML::Node &config, const std::string& node_name) : GeneralBackend(config,
                                                                                                          node_name) {
         YAML::Node frankx_config = config["frankr"];
-        this->robot_name = get_config_value<std::string>(frankx_config, "robot_name")[0];
         this->dynamic_rel = get_config_value<double>(frankx_config, "dynamic_rel")[0];
         this->robot = nullptr;
         this->motion_data = nullptr;

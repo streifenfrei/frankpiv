@@ -41,9 +41,13 @@ namespace frankpiv::backend {
         this->node_handle.shutdown();
     }
 
-    void GeneralBackend::start() {
+    void GeneralBackend::start(Eigen::Affine3d *reference_frame_) {
         this->initialize();
-        this->reference_frame = this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance);
+        if (reference_frame_){
+            this->setReferenceFrame(*reference_frame_);
+        } else {
+            this->reference_frame = this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance);
+        }
 #ifdef VISUALIZATION
         if (this->visualize) {
             this->reset_markers();

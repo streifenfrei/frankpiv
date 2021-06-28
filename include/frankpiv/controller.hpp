@@ -5,19 +5,21 @@
 
 namespace frankpiv {
     class Controller {
-    public:
+    private:
         frankpiv::backend::GeneralBackend *backend;
+    public:
 
         explicit Controller(const std::string &config_file);
 
         ~Controller();
 
-        void start() const;
+        void start(Eigen::Affine3d *reference_frame = nullptr) const;
+        void start(std::optional<std::array<double, 6>> reference_frame) const;
 
         void stop() const;
 
         void moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame = nullptr) const;
-        void moveToPoint(std::array<double, 3> point, double roll, std::optional<std::array<double, 6>> frame) const;
+        void moveToPoint(std::array<double, 3> point, double roll, const std::optional<std::array<double, 6>> frame) const;
 
         void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false) const;
         void movePYRZ(std::array<double, 4> pyrz, bool degrees = false) const;

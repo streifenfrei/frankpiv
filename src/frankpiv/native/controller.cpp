@@ -64,8 +64,17 @@ namespace frankpiv {
         this->stop();
     }
 
-    void Controller::start() const {
-        (*this->backend).start();
+    void Controller::start(Affine3d *reference_frame) const {
+        (*this->backend).start(reference_frame);
+    }
+
+    void Controller::start(const std::optional<std::array<double, 6>> reference_frame) const {
+        Affine3d *frame_affine = nullptr;
+        if (reference_frame.has_value()) {
+            frame_affine = new Affine3d();
+            *frame_affine = to_affine(*reference_frame);
+        }
+        (*this->backend).start(frame_affine);
     }
 
     void Controller::stop() const {

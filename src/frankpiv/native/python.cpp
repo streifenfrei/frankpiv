@@ -11,10 +11,11 @@ using namespace Eigen;
 PYBIND11_MODULE(frankpyv, module) {
     py::class_<Controller>(module, "Controller")
             .def(py::init<const std::string &>())
-            .def("start", &Controller::start)
+            .def("start", py::overload_cast<std::optional<std::array<double, 6>>>(&Controller::start, py::const_),
+                 "reference_frame"_a = nullptr)
             .def("stop", &Controller::stop)
             .def("move_to_point", py::overload_cast<std::array<double, 3>, double, std::optional<std::array<double, 6>>>
-                    (&Controller::moveToPoint, py::const_),
+                         (&Controller::moveToPoint, py::const_),
                  "point"_a, "roll"_a, "frame"_a = nullptr)
             .def("move_pyrz", py::overload_cast<std::array<double, 4>, bool>(&Controller::movePYRZ, py::const_),
                  "pyrz"_a, "degrees"_a = false)

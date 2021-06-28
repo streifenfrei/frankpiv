@@ -17,7 +17,7 @@ namespace frankpiv::backend {
         boost::mutex threads_list_lock;
         boost::atomic<bool> terminating;
 
-        void movePYRZInternal(const Eigen::Vector4d &pyrz, bool degrees);
+        bool movePYRZInternal(const Eigen::Vector4d &pyrz, bool degrees);
 
     protected:
         void initialize() override;
@@ -26,7 +26,7 @@ namespace frankpiv::backend {
 
         Eigen::Affine3d currentPose() override;
 
-        void moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
+        bool moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
 
     public:
 
@@ -34,7 +34,7 @@ namespace frankpiv::backend {
 
         explicit MoveitBackend(const YAML::Node &config, const std::string& node_name = "pivot_controller", bool async_motion = false);
 
-        void movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false) override;
+        bool movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false) override;
 
     };
 }

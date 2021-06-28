@@ -29,8 +29,8 @@ namespace frankpiv::backend {
         return this->robot->currentPose(frankx::Affine()).data;
     }
 
-    void FrankxBackend::moveRobotCartesian(const Affine3d &target_pose) {
+    bool FrankxBackend::moveRobotCartesian(const Affine3d &target_pose) {
         frankx::LinearMotion motion = frankx::LinearMotion(movex::WaypointMotion::Affine(target_pose));
-        this->robot->move(motion);
+        return this->robot->move(motion);
     }
 }

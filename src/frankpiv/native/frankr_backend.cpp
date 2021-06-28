@@ -20,7 +20,7 @@ namespace frankpiv::backend {
     }
 
     void FrankrBackend::initialize() {
-        this->robot = new Robot(this->robot_name, this->dynamic_rel);
+        this->robot = new Robot(this->getRobotName(), this->dynamic_rel);
         MotionData _motion_data;
         this->motion_data = &_motion_data;
     }
@@ -34,7 +34,7 @@ namespace frankpiv::backend {
         return this->robot->currentPose(Affine()).data;
     }
 
-    void FrankrBackend::moveRobotCartesian(const Affine3d &target_pose) {
-        this->robot->moveCartesian(Affine(), target_pose, *this->motion_data);
+    bool FrankrBackend::moveRobotCartesian(const Affine3d &target_pose) {
+        return this->robot->moveCartesian(Affine(), target_pose, *this->motion_data);
     }
 }

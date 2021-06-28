@@ -17,7 +17,7 @@ namespace frankpiv::backend {
     }
 
     void MoveitBackend::initialize() {
-        this->robot = new moveit::planning_interface::MoveGroupInterface(this->robot_name);
+        this->robot = new moveit::planning_interface::MoveGroupInterface(this->getRobotName());
         this->terminating = false;
     }
 
@@ -39,7 +39,7 @@ namespace frankpiv::backend {
         return to_affine(this->robot->getCurrentPose());
     }
 
-    void MoveitBackend::moveRobotCartesian(const Eigen::Affine3d &target_pose) {
+    bool MoveitBackend::moveRobotCartesian(const Eigen::Affine3d &target_pose) {
         bool move = true;
         if (this->async_motion) {
             boost::thread::id most_recent_thread = *this->threads_list.end();
@@ -49,31 +49,39 @@ namespace frankpiv::backend {
             std::vector<geometry_msgs::Pose> waypoints;
             waypoints.push_back(to_pose_msg(target_pose));
             moveit_msgs::RobotTrajectory trajectory;
-            this->robot->computeCartesianPath(waypoints, this->eef_step, this->jump_threshold, trajectory);
+            double fraction = this->robot->computeCartesianPath(waypoints, this->eef_step, this->jump_threshold, trajectory);
+            if (fraction != 1.) {
+                return false;
+            }
             if (!this->terminating) {
-                this->robot->execute(trajectory);
+                return this->robot->execute(trajectory) == 1;
             }
         }
+        return false;
     }
 
-    void MoveitBackend::movePYRZInternal(const Eigen::Vector4d &pyrz, bool degrees) {
+    bool MoveitBackend::movePYRZInternal(const Eigen::Vector4d &pyrz, bool degrees) {
         this->threads_list_lock.lock();
         this->threads_list.push_back(boost::this_thread::get_id());
         this->threads_list_lock.unlock();
         this->robot->stop();
+        bool status = false;
         if (!this->terminating) {
-            GeneralBackend::movePYRZ(pyrz, degrees);
+            status = GeneralBackend::movePYRZ(pyrz, degrees);
         }
         this->threads_list_lock.lock();
         this->threads_list.remove(boost::this_thread::get_id());
         this->threads_list_lock.unlock();
+        return status;
     }
 
-    void MoveitBackend::movePYRZ(const Eigen::Vector4d &pyrz, bool degrees) {
+    bool MoveitBackend::movePYRZ(const Eigen::Vector4d &pyrz, bool degrees) {
         if (this->async_motion) {
             boost::thread(&MoveitBackend::movePYRZInternal, this, pyrz, degrees);
+            //TODO handle status flag of async motion
+            return true;
         } else {
-            this->movePYRZInternal(pyrz, degrees);
+            return this->movePYRZInternal(pyrz, degrees);
         }
     }
 

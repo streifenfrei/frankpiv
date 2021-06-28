@@ -18,7 +18,7 @@ namespace frankpiv::backend {
 
         Eigen::Affine3d currentPose() override;
 
-        void moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
+        bool moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
 
     public:
         explicit FrankxBackend(const YAML::Node &config, const std::string& node_name = "pivot_controller");

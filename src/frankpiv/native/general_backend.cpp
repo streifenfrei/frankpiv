@@ -64,7 +64,8 @@ namespace frankpiv::backend {
         double z_translation = point[2] >= 0. ? point.norm() : -point.norm();
         Vector3d z_axis = point[2] >= 0. ? Vector3d(0, 0, 1) : Vector3d(0, 0, -1);
         double angle;
-        if (point[0] == 0. && point[1] == 0. && point[2] == 0.) { // point lies in the origin -> add offset to calculate angle
+        if (point[0] == 0. && point[1] == 0. &&
+            point[2] == 0.) { // point lies in the origin -> add offset to calculate angle
             Vector3d point_offset;
             point_offset = (pose_local * Translation3d(0, 0, 1)).translation();
             angle = point_offset.dot(z_axis);
@@ -92,12 +93,13 @@ namespace frankpiv::backend {
         return false;
     }
 
-    Vector3d GeneralBackend::poseToPYZ(const Affine3d &pose) {
+    Vector4d GeneralBackend::poseToPYRZ(const Affine3d &pose) {
         Vector3d point = pose.translation();
-        Vector3d orientation = get_rotation_euler(pose);
         double distance = point.norm();
         double z_translation = point(2) >= 0 ? distance : -distance;
-        return Vector3d(orientation(0), orientation(1), z_translation);
+        Affine3d inOrigin = pose * Translation3d(0, 0, -z_translation);
+        Vector3d orientation = get_rotation_euler(inOrigin);
+        return Vector4d(orientation(0), orientation(1), orientation(2), z_translation);
     }
 
     void GeneralBackend::moveToPoint(const Vector3d &point, double roll, const Affine3d *frame) {

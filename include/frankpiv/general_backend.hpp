@@ -29,7 +29,8 @@ namespace frankpiv::backend {
 
         void reset_markers();
 #endif
-        Eigen::Vector3d static poseToPYZ(const Eigen::Affine3d &pose);
+
+        Eigen::Vector4d static poseToPYRZ(const Eigen::Affine3d &pose);
 
         bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
 

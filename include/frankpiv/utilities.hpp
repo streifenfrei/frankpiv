@@ -28,6 +28,8 @@ namespace frankpiv {
 
         double rad(double x);
 
+        double deg(double x);
+
         double clip(double n, double lower, double upper);
 
         double clip(double n, const Eigen::Vector2d &boundaries);

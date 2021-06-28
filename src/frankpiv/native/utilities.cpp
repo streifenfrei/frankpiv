@@ -11,23 +11,27 @@ namespace frankpiv::util {
     Vector3d get_rotation_euler(const Affine3d &affine) {
         Vector3d angles = EulerAngles<double, EulerSystemXYZ>::FromRotation<false, false, false>(
                 affine.rotation()).angles();
-        Vector3d angles_equal;
-        angles_equal << angles[0] - M_PI, M_PI - angles[1], angles[2] - M_PI;
-
-        if (angles_equal[0] < -M_PI) {
-            angles_equal[0] += 2 * M_PI;
+        if (angles[0] > M_PI_2 || angles[0] < -M_PI_2) {
+            angles << angles[0] - M_PI, M_PI - angles[1], angles[2] - M_PI;
+            if (angles[0] < -M_PI) {
+                angles[0] += 2 * M_PI;
+            }
+            if (angles[1] > M_PI) {
+                angles[1] -= 2 * M_PI;
+            }
+            if (angles[2] > M_PI) {
+                angles[2] += 2 * M_PI;
+            }
         }
-        if (angles_equal[1] > M_PI) {
-            angles_equal[1] -= 2 * M_PI;
-        }
-        if (angles.norm() < angles_equal.norm()) {
-            return angles;
-        }
-        return angles_equal;
+        return angles;
     }
 
     double rad(double x) {
-        return x * (M_PI / 180);
+        return x * M_PI / 180;
+    }
+
+    double deg(double x) {
+        return x * 180 / M_PI;
     }
 
     double clip(double n, double lower, double upper) {

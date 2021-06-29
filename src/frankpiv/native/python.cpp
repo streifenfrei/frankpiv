@@ -21,5 +21,15 @@ PYBIND11_MODULE(frankpyv, module) {
                  "pyrz"_a, "degrees"_a = false)
             .def("move_pyrz_relative",
                  py::overload_cast<std::array<double, 4>, bool>(&Controller::movePYRZRelative, py::const_),
-                 "pyrz"_a, "degrees"_a = false);
+                 "pyrz"_a, "degrees"_a = false)
+            .def_property("initial_eef_ppoint_distance", &Controller::getInitialEefPpointDistance, &Controller::setInitialEefPpointDistance)
+            .def_property("tool_length", &Controller::getToolLength, &Controller::setToolLength)
+            .def_property("max_angle", &Controller::getMaxAngle, &Controller::setMaxAngle)
+            .def_property("roll_boundaries", &Controller::getRollBoundariesAsArray, py::overload_cast<const std::array<double, 2>&>(&Controller::setRollBoundaries))
+            .def_property("z_translation", &Controller::getZTranslationBoundariesAsArray, py::overload_cast<const std::array<double, 2>&>(&Controller::setZTranslationBoundaries))
+            .def_property("clip_boundaries", &Controller::isClipToBoundaries, &Controller::setClipToBoundaries)
+            .def_property("move_directly", &Controller::isMoveDirectly, &Controller::setMoveDirectly)
+            .def_property("reference_frame", &Controller::getReferenceFrameAsArray, py::overload_cast<const std::array<double, 6>&>(&Controller::setReferenceFrame))
+            .def_property_readonly("current_pyrz", &Controller::getCurrentPyrzAsArray)
+            .def_property_readonly("pivot_error", &Controller::getPivotError);
 }

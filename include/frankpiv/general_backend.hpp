@@ -43,6 +43,7 @@ namespace frankpiv::backend {
         rviz_visual_tools::RvizVisualToolsPtr visual_tools;
 
         void reset_markers();
+
 #endif
 
         Eigen::Vector4d static poseToPYRZ(const Eigen::Affine3d &pose);

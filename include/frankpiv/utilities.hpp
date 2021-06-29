@@ -45,7 +45,7 @@ namespace frankpiv {
 
         Eigen::Affine3d to_affine(const std::array<double, 6> &array);
 
-        std_msgs::ColorRGBA get_color_msg(int r, int g, int b, int a);
+        std::array<double, 6> to_array(const Eigen::Affine3d &affine);
 
         // other
         template<typename T>

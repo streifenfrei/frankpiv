@@ -43,7 +43,7 @@ namespace frankpiv::backend {
 
     void GeneralBackend::start(Eigen::Affine3d *reference_frame_) {
         this->initialize();
-        if (reference_frame_){
+        if (reference_frame_) {
             this->setReferenceFrame(*reference_frame_);
         } else {
             this->reference_frame = this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance);
@@ -319,10 +319,10 @@ namespace frankpiv::backend {
         return this->poseToPYRZ(current_pose);
     }
 
-   double GeneralBackend::getPivotError(){
-       Affine3d current_pose = this->reference_frame.inverse() * currentPose();
-       current_pose *= Translation3d(0, 0, current_pose.translation().norm());
-       return current_pose.translation().norm();
+    double GeneralBackend::getPivotError() {
+        Affine3d current_pose = this->reference_frame.inverse() * currentPose();
+        current_pose *= Translation3d(0, 0, current_pose.translation().norm());
+        return current_pose.translation().norm();
     }
 
     const ros::NodeHandle &GeneralBackend::getNodeHandle() const {
@@ -338,10 +338,11 @@ namespace frankpiv::backend {
         target_pose *= Translation3d(0, 0, this->initial_eef_ppoint_distance);
         bool clipped = this->clipPose(target_pose);
         if (clipped) {
-            if (!this->clip_to_boundaries){
+            if (!this->clip_to_boundaries) {
                 throw UnattainablePoseException("Current pose is out of boundaries");
             }
-            target_pose = this->reference_frame * (target_pose * Translation3d(0, 0, -this->initial_eef_ppoint_distance));
+            target_pose =
+                    this->reference_frame * (target_pose * Translation3d(0, 0, -this->initial_eef_ppoint_distance));
             if (!this->moveRobotCartesian(target_pose)) {
                 throw UnattainablePoseException("Failed to fix current pose");
             }

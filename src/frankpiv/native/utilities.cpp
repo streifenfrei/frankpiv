@@ -87,12 +87,9 @@ namespace frankpiv::util {
         return affine;
     }
 
-    std_msgs::ColorRGBA get_color_msg(int r, int g, int b, int a) {
-        std_msgs::ColorRGBA color;
-        color.r = r;
-        color.g = g;
-        color.b = b;
-        color.a = a;
-        return color;
+    std::array<double, 6> to_array(const Eigen::Affine3d &affine) {
+        Eigen::Matrix<double, 6, 1> matrix;
+        matrix << affine.translation(), get_rotation_euler(affine);
+        return {matrix(0), matrix(1), matrix(2), matrix(3), matrix(4), matrix(5)};
     }
 }

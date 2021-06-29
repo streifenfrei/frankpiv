@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(frankpiv)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -89,9 +89,15 @@ if (PYTHON_BINDING)
     pybind11_add_module(frankpyv src/frankpiv/native/python.cpp)
     target_link_libraries(frankpyv PUBLIC frankpiv)
     set_target_properties(frankpyv PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
-    add_custom_command(
-            TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/frankpiv/default_config.yml
-            ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
 endif()
+
+# post build script
+if (PYTHON_BINDING)
+    set(PYTHON_BINDING true)
+else()
+    set(PYTHON_BINDING false)
+endif()
+    configure_file(post_build.sh ${CMAKE_CURRENT_BINARY_DIR}/post_build_ready.sh FILE_PERMISSIONS OWNER_READ OWNER_EXECUTE @ONLY)
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/post_build_ready.sh)

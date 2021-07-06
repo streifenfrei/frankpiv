@@ -1,2 +1,2 @@
 # frankpiv
-A pivoting controller for the franka emika panda roboter
+A pivoting controller for the franka emika panda robot

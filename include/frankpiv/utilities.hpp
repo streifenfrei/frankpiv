@@ -4,7 +4,6 @@
 #include <Eigen/Geometry>
 #include "yaml-cpp/yaml.h"
 #include <geometry_msgs/Point.h>
-#include <std_msgs/ColorRGBA.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <boost/thread/mutex.hpp>
 

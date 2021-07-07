@@ -2,6 +2,8 @@
 #define FRANKPIV_MOVEIT_BACKEND
 
 #include "moveit/move_group_interface/move_group_interface.h"
+#include <moveit/robot_model/robot_model.h>
+#include <moveit/planning_interface/planning_interface.h>
 
 #include "frankpiv/general_backend.hpp"
 
@@ -11,6 +13,9 @@ namespace frankpiv::backend {
         float eef_step;
         float jump_threshold;
         moveit::planning_interface::MoveGroupInterface *robot;
+        planning_interface::PlannerManagerPtr planner_instance;
+
+        void loadPlanningPlugin();
 
     protected:
         void initialize() override;
@@ -22,7 +27,8 @@ namespace frankpiv::backend {
         bool moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
 
     public:
-        explicit MoveitBackend(const YAML::Node &config, const std::string& node_name = "pivot_controller", bool async_motion = false);
+        explicit MoveitBackend(const YAML
+        ::Node &config, const std::string& node_name = "pivot_controller", bool async_motion = false);
     };
 }
 

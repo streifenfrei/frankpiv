@@ -7,30 +7,16 @@
     <license>BSD</license>
 
     <buildtool_depend>catkin</buildtool_depend>
-    <build_depend>roscpp</build_depend>
-    <build_depend>message_generation</build_depend>
-    <build_depend>actionlib</build_depend>
-    <build_depend>std_msgs</build_depend>
-    <build_depend>geometry_msgs</build_depend>
-    <build_depend>franka_msgs</build_depend>
-    <build_depend>panda_moveit_config</build_depend>
-    <build_depend>moveit_core</build_depend>
-    <build_depend>moveit_ros_planning</build_depend>
-    <build_depend>moveit_ros_planning_interface</build_depend>
+    <depend>pluginlib</depend>
+    <depend>roscpp</depend>
+    <depend>std_msgs</depend>
+    <depend>geometry_msgs</depend>
+    <depend>panda_moveit_config</depend>
+    <depend>moveit_core</depend>
+    <depend>moveit_msgs</depend>
+    <depend>moveit_ros_planning</depend>
+    <depend>moveit_ros_planning_interface</depend>
+    <depend>moveit_planners_ompl</depend>
 
-    <build_export_depend>roscpp</build_export_depend>
-    <build_export_depend>message_runtime</build_export_depend>
-
-    <depend>actionlib_msgs</depend>
-
-    <exec_depend>roscpp</exec_depend>
-    <exec_depend>message_runtime</exec_depend>
-    <exec_depend>actionlib</exec_depend>
-    <exec_depend>std_msgs</exec_depend>
-    <exec_depend>geometry_msgs</exec_depend>
-    <exec_depend>franka_msgs</exec_depend>
-    <exec_depend>panda_moveit_config</exec_depend>
-    <exec_depend>moveit_core</exec_depend>
-    <exec_depend>moveit_ros_planning</exec_depend>
-    <exec_depend>moveit_ros_planning_interface</exec_depend>
+    <exec_depend>elion_moveit_plugin</exec_depend>
 </package>

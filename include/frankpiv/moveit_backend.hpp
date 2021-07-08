@@ -4,6 +4,7 @@
 #include "moveit/move_group_interface/move_group_interface.h"
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/planning_interface/planning_interface.h>
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
 #include "frankpiv/general_backend.hpp"
 
@@ -13,6 +14,7 @@ namespace frankpiv::backend {
         float eef_step;
         float jump_threshold;
         moveit::planning_interface::MoveGroupInterface *robot;
+        planning_scene_monitor::PlanningSceneMonitor *planning_scene_monitor;
         planning_interface::PlannerManagerPtr planner_instance;
 
         void loadPlanningPlugin();

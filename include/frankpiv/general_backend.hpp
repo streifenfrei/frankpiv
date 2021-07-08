@@ -37,7 +37,6 @@ namespace frankpiv::backend {
         Eigen::Affine3d reference_frame;
         ros::NodeHandle node_handle;
         ros::AsyncSpinner spinner{1};
-        std::string robot_name;
 #ifdef VISUALIZATION
         bool visualize;
         rviz_visual_tools::RvizVisualToolsPtr visual_tools;
@@ -45,7 +44,6 @@ namespace frankpiv::backend {
         void reset_markers();
 
 #endif
-
         Eigen::Vector4d static poseToPYRZ(const Eigen::Affine3d &pose);
 
         bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
@@ -53,6 +51,8 @@ namespace frankpiv::backend {
         void fixCurrentPose();
 
     protected:
+        std::string robot_name;
+
         [[nodiscard]] const ros::NodeHandle &getNodeHandle() const;
 
         [[nodiscard]] const std::string &getRobotName() const;

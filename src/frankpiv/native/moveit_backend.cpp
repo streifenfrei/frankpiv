@@ -3,6 +3,7 @@
 #include <moveit/robot_state/conversions.h>
 #include <moveit/kinematic_constraints/utils.h>
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
+#include <moveit/trajectory_processing/iterative_time_parameterization.h>
 
 #include "frankpiv/moveit_backend.hpp"
 #include "frankpiv/utilities.hpp"
@@ -49,6 +50,7 @@ namespace frankpiv::backend {
         this->planning_scene_monitor = new planning_scene_monitor::PlanningSceneMonitor("robot_description");
         if (!this->planner_instance->initialize(this->robot->getRobotModel(), "/move_group"))
             ROS_FATAL_STREAM("Could not initialize planner instance");
+        this->moveJointUnconstrained(std::vector<double>{0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.0, 0.0});
     }
 
     void MoveitBackend::finish() {
@@ -76,23 +78,18 @@ namespace frankpiv::backend {
         request.goal_constraints.clear();
         request.goal_constraints.push_back(joint_goal);
         request.planner_id = "RRTConnect";
-        request.allowed_planning_time = 100.0;
+        request.allowed_planning_time = 200.0;
 
         moveit_msgs::Constraints constraints;
         moveit_msgs::PositionConstraint position_constraint;
-        shape_msgs::SolidPrimitive box;
-        box.type = shape_msgs::SolidPrimitive::BOX;
-        box.dimensions = {2,2,2};
-        geometry_msgs::Pose box_pose;
-        box_pose.position.x = 0;
-        box_pose.position.y = 0;
-        box_pose.position.z = 0;
-        box_pose.orientation.w = 1;
-        position_constraint.constraint_region.primitives.push_back(box);
-        position_constraint.constraint_region.primitive_poses.push_back(box_pose);
-        position_constraint.header.frame_id = "panda_link0";
-        position_constraint.link_name = "panda_link8";
+        geometry_msgs::Pose pivot_pose;
+        Vector3d pivot_point = this->getReferenceFrame().translation();
+        pivot_pose.position.x = pivot_point[0];
+        pivot_pose.position.y = pivot_point[1];
+        pivot_pose.position.z = pivot_point[2];
+        position_constraint.constraint_region.primitive_poses.push_back(pivot_pose);
         constraints.position_constraints.push_back(position_constraint);
+        //constraints.position_constraints.push_back(moveit_msgs::PositionConstraint());
         request.path_constraints = constraints;
         // solve
         planning_interface::MotionPlanResponse response;
@@ -102,10 +99,57 @@ namespace frankpiv::backend {
         }
         // time parameterization
         robot_trajectory::RobotTrajectory& trajectory = *response.trajectory_;
-        trajectory_processing::IterativeSplineParameterization isp;
-        isp.computeTimeStamps(trajectory);
+        trajectory_processing::IterativeParabolicTimeParameterization isp;
+        //trajectory_processing::IterativeSplineParameterization isp;
+        isp.computeTimeStamps(trajectory, 0.1, 0.15);
         moveit_msgs::RobotTrajectory trajectory_msg;
         trajectory.getRobotTrajectoryMsg(trajectory_msg);
+        // remove redundant first point ...
+        std::vector<trajectory_msgs::JointTrajectoryPoint> fixed_points;
+        for (int i = 1; i < trajectory.getWayPointCount(); i++) {
+            fixed_points.push_back(trajectory_msg.joint_trajectory.points[i]);
+        }
+        trajectory_msg.joint_trajectory.points = fixed_points;
+        return this->robot->execute(trajectory_msg) == 1;
+    }
+
+    bool MoveitBackend::moveJointUnconstrained(const std::vector<double> joints){
+        const robot_state::JointModelGroup* joint_model_group = this->robot->getCurrentState()->getJointModelGroup(this->robot_name);
+        // prepare request
+        planning_interface::MotionPlanRequest request;
+        request.group_name = this->robot_name;
+        const moveit::core::RobotState start_state= *this->robot->getCurrentState();
+        moveit::core::robotStateToRobotStateMsg(start_state, request.start_state);
+        robot_state::RobotState target_state(this->robot->getRobotModel());
+        target_state.setJointGroupPositions(joint_model_group, joints);
+        moveit_msgs::Constraints joint_goal =
+                kinematic_constraints::constructGoalConstraints(target_state, joint_model_group, 0.001);
+        request.goal_constraints.clear();
+        request.goal_constraints.push_back(joint_goal);
+        request.planner_id = "RRTConnect";
+        request.allowed_planning_time = 200.0;
+
+        moveit_msgs::Constraints constraints;
+        request.path_constraints = constraints;
+        // solve
+        planning_interface::MotionPlanResponse response;
+        auto context = this->planner_instance->getPlanningContext(this->planning_scene_monitor->getPlanningScene(), request, response.error_code_);
+        if (!context->solve(response)){
+            return false;
+        }
+        // time parameterization
+        robot_trajectory::RobotTrajectory& trajectory = *response.trajectory_;
+        trajectory_processing::IterativeParabolicTimeParameterization isp;
+        //trajectory_processing::IterativeSplineParameterization isp;
+        isp.computeTimeStamps(trajectory, 0.1, 0.1);
+        moveit_msgs::RobotTrajectory trajectory_msg;
+        trajectory.getRobotTrajectoryMsg(trajectory_msg);
+        // remove redundant first point ...
+        std::vector<trajectory_msgs::JointTrajectoryPoint> fixed_points;
+        for (int i = 1; i < trajectory.getWayPointCount(); i++) {
+            fixed_points.push_back(trajectory_msg.joint_trajectory.points[i]);
+        }
+        trajectory_msg.joint_trajectory.points = fixed_points;
         return this->robot->execute(trajectory_msg) == 1;
     }
 }

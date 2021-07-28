@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_real_distribution<> dis(0., 1.);
+    std::cout << "Moving using PYRZ" << std::endl;
     for (int i = 0; i < 10; ++i) {
         // move to random points using pitch, yaw, roll, z-translation values
         double pitch = (dis(gen)  - 0.5) * 0.7 * M_PI;
@@ -22,8 +23,10 @@ int main(int argc, char *argv[])
         controller.movePYRZ(Vector4d(pitch, yaw, roll, z_translation));
     }
     // move to some point in the pivot point frame (reference frame of the controller)
+    std::cout << "Moving to point in reference frame" << std::endl;
     controller.moveToPoint(Vector3d(0.15, -0.15, 0.1), M_PI);
     // move to some point in the global frame
+    std::cout << "Moving to point in global frame" << std::endl;
     Affine3d reference_frame;
     reference_frame = Affine3d::Identity();
     controller.moveToPoint(Vector3d(0.2, 0.1, 0.15), M_PI, &reference_frame);

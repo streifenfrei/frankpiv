@@ -31,6 +31,9 @@ namespace frankpiv::backend {
     public:
         explicit MoveitBackend(const YAML
         ::Node &config, const std::string& node_name = "pivot_controller", bool async_motion = false);
+
+        // for debugging
+        bool moveJointUnconstrained(const std::vector<double> joints);
     };
 }
 

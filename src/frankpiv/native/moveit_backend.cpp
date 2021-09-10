@@ -50,7 +50,7 @@ namespace frankpiv::backend {
         this->planning_scene_monitor = new planning_scene_monitor::PlanningSceneMonitor("robot_description");
         if (!this->planner_instance->initialize(this->robot->getRobotModel(), "/move_group"))
             ROS_FATAL_STREAM("Could not initialize planner instance");
-        this->moveJointUnconstrained(std::vector<double>{0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.0, 0.0});
+        this->moveJointUnconstrained(std::vector<double>{0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785});
     }
 
     void MoveitBackend::finish() {
@@ -71,6 +71,7 @@ namespace frankpiv::backend {
         moveit::core::robotStateToRobotStateMsg(start_state, request.start_state);
         robot_state::RobotState target_state(this->robot->getRobotModel());
         if (!target_state.setFromIK(joint_model_group, to_pose_msg(target_pose))) {
+            ROS_ERROR_STREAM("Motion failed while calculating target joint values");
             return false;
         }
         moveit_msgs::Constraints joint_goal =
@@ -95,6 +96,7 @@ namespace frankpiv::backend {
         planning_interface::MotionPlanResponse response;
         auto context = this->planner_instance->getPlanningContext(this->planning_scene_monitor->getPlanningScene(), request, response.error_code_);
         if (!context->solve(response)){
+            ROS_ERROR_STREAM("Motion failed during planning");
             return false;
         }
         // time parameterization
@@ -105,12 +107,19 @@ namespace frankpiv::backend {
         moveit_msgs::RobotTrajectory trajectory_msg;
         trajectory.getRobotTrajectoryMsg(trajectory_msg);
         // remove redundant first point ...
-        std::vector<trajectory_msgs::JointTrajectoryPoint> fixed_points;
-        for (int i = 1; i < trajectory.getWayPointCount(); i++) {
-            fixed_points.push_back(trajectory_msg.joint_trajectory.points[i]);
+        if (trajectory_msg.joint_trajectory.points[0].time_from_start == trajectory_msg.joint_trajectory.points[1].time_from_start) {
+            std::vector<trajectory_msgs::JointTrajectoryPoint> fixed_points;
+            for (int i = 1; i < trajectory.getWayPointCount(); i++) {
+                fixed_points.push_back(trajectory_msg.joint_trajectory.points[i]);
+            }
+            trajectory_msg.joint_trajectory.points = fixed_points;
         }
-        trajectory_msg.joint_trajectory.points = fixed_points;
-        return this->robot->execute(trajectory_msg) == 1;
+        moveit::planning_interface::MoveItErrorCode error_code = this->robot->execute(trajectory_msg);
+        if (error_code != 1) {
+            ROS_ERROR_STREAM("Motion failed during execution: code " << error_code);
+            return false;
+        }
+        return true;
     }
 
     bool MoveitBackend::moveJointUnconstrained(const std::vector<double> joints){
@@ -145,11 +154,13 @@ namespace frankpiv::backend {
         moveit_msgs::RobotTrajectory trajectory_msg;
         trajectory.getRobotTrajectoryMsg(trajectory_msg);
         // remove redundant first point ...
-        std::vector<trajectory_msgs::JointTrajectoryPoint> fixed_points;
-        for (int i = 1; i < trajectory.getWayPointCount(); i++) {
-            fixed_points.push_back(trajectory_msg.joint_trajectory.points[i]);
+        if (trajectory_msg.joint_trajectory.points[0].time_from_start == trajectory_msg.joint_trajectory.points[1].time_from_start) {
+            std::vector<trajectory_msgs::JointTrajectoryPoint> fixed_points;
+            for (int i = 1; i < trajectory.getWayPointCount(); i++) {
+                fixed_points.push_back(trajectory_msg.joint_trajectory.points[i]);
+            }
+            trajectory_msg.joint_trajectory.points = fixed_points;
         }
-        trajectory_msg.joint_trajectory.points = fixed_points;
         return this->robot->execute(trajectory_msg) == 1;
     }
 }

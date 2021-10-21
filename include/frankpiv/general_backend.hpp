@@ -1,8 +1,8 @@
 #ifndef FRANKPIV_GENERAL_BACKEND
 #define FRANKPIV_GENERAL_BACKEND
 
-#include "Eigen/Geometry"
-#include "ros/ros.h"
+#include <Eigen/Geometry>
+#include <ros/ros.h>
 
 #ifdef VISUALIZATION
 
@@ -11,11 +11,12 @@
 #endif
 
 #include "yaml-cpp/yaml.h"
+#include "frankpiv/pivot_frame.hpp"
 
 namespace frankpiv::backend {
     class ROSNode {
     public:
-        explicit ROSNode(const std::string &node_name) {
+        explicit ROSNode(std::string node_name) {
             int argc = 0;
             ros::init(argc, nullptr, node_name);
         }
@@ -27,35 +28,32 @@ namespace frankpiv::backend {
 
     class GeneralBackend : ROSNode {
     private:
-        double initial_eef_ppoint_distance;
-        double tool_length;
-        double max_angle;
-        Eigen::Vector2d roll_boundaries;
-        Eigen::Vector2d z_translation_boundaries;
-        bool clip_to_boundaries;
-        bool move_directly;
-        Eigen::Affine3d reference_frame;
-        ros::NodeHandle node_handle;
-        ros::AsyncSpinner spinner{1};
+        double initial_eef_ppoint_distance_;
+        double tool_length_;
+        double max_angle_;
+        Eigen::Vector2d roll_boundaries_;
+        Eigen::Vector2d z_translation_boundaries_;
+        bool clip_to_boundaries_;
+        bool move_directly_;
+        ros::NodeHandle node_handle_{};
+        ros::AsyncSpinner spinner_{1};
+
 #ifdef VISUALIZATION
-        bool visualize;
+        bool visualize_;
         rviz_visual_tools::RvizVisualToolsPtr visual_tools;
 
-        void reset_markers();
-
+        void resetMarkers();
 #endif
-        Eigen::Vector4d static poseToPYRZ(const Eigen::Affine3d &pose);
-
-        bool clipPose(Eigen::Affine3d &pose, double *out_angle = nullptr);
 
         void fixCurrentPose();
 
     protected:
-        std::string robot_name;
+        std::string robot_name_;
+        std::shared_ptr <frankpiv::PivotFrame> pivot_frame;
 
-        [[nodiscard]] const ros::NodeHandle &getNodeHandle() const;
+        double error_tolerance_;
 
-        [[nodiscard]] const std::string &getRobotName() const;
+        [[nodiscard]] const ros::NodeHandle &node_handle() const { return node_handle_; }
 
         virtual void initialize() = 0;
 
@@ -63,54 +61,53 @@ namespace frankpiv::backend {
 
         virtual Eigen::Affine3d currentPose() = 0;
 
-        virtual bool moveRobotCartesian(const Eigen::Affine3d &target_pose) = 0;
+        virtual bool moveRobotCartesian(Eigen::Affine3d target_pose) = 0;
 
     public:
-        [[nodiscard]] double getInitialEefPpointDistance() const;
+        [[nodiscard]] double initial_eef_ppoint_distance() const { return initial_eef_ppoint_distance_; }
 
-        [[nodiscard]] double getToolLength() const;
+        void initial_eef_ppoint_distance(double initial_eef_ppoint_distance);
 
-        [[nodiscard]] double getMaxAngle() const;
+        [[nodiscard]] double tool_length() const { return tool_length_; }
 
-        [[nodiscard]] const Eigen::Vector2d &getRollBoundaries() const;
+        void tool_length(double tool_length);
 
-        [[nodiscard]] const Eigen::Vector2d &getZTranslationBoundaries() const;
+        [[nodiscard]] double error_tolerance() const { return error_tolerance_; }
 
-        [[nodiscard]] bool isClipToBoundaries() const;
+        void error_tolerance(double error_tolerance);
 
-        [[nodiscard]] bool isMoveDirectly() const;
+        [[nodiscard]] double max_angle() const { return max_angle_; }
 
-        [[nodiscard]] const Eigen::Affine3d &getReferenceFrame() const;
+        void max_angle(double max_angle);
 
-        [[nodiscard]] Eigen::Vector4d getCurrentPyrz();
+        [[nodiscard]] Eigen::Vector2d roll_boundaries() const { return roll_boundaries_; }
 
-        [[nodiscard]] double getPivotError();
+        void roll_boundaries(Eigen::Vector2d roll_boundaries);
+
+        [[nodiscard]] Eigen::Vector2d z_translation_boundaries() const { return z_translation_boundaries_; }
+
+        void z_translation_boundaries(Eigen::Vector2d z_translation_boundaries);
+
+        [[nodiscard]] bool clip_to_boundaries() const { return clip_to_boundaries_; }
+
+        void clip_to_boundaries(bool clip_to_boundaries) { clip_to_boundaries_ = clip_to_boundaries; }
+
+        [[nodiscard]] bool move_directly() const { return move_directly_; }
+
+        void move_directly(bool move_directly) { move_directly_ = move_directly; }
+
+        [[nodiscard]] Eigen::Affine3d reference_frame() const { return pivot_frame->reference_frame(); }
+
+        void reference_frame(Eigen::Affine3d reference_frame);
 
 #ifdef VISUALIZATION
-
-        [[nodiscard]] bool isVisualize() const;
-
-        void setVisualize(bool visualize_);
-
+        [[nodiscard]] bool visualize() const { return visualize_; };
+        void visualize(bool visualize);
 #endif
 
-        void setInitialEefPpointDistance(double initialEefPpointDistance);
+        [[nodiscard]] Eigen::Vector4d getCurrentPYRZ();
 
-        void setToolLength(double toolLength);
-
-        void setMaxAngle(double maxAngle);
-
-        void setRollBoundaries(const Eigen::Vector2d &rollBoundaries);
-
-        void setZTranslationBoundaries(const Eigen::Vector2d &zTranslationBoundaries);
-
-        void setClipToBoundaries(bool clipToBoundaries);
-
-        void setMoveDirectly(bool moveDirectly);
-
-        void setReferenceFrame(const Eigen::Affine3d &referenceFrame);
-
-        explicit GeneralBackend(const YAML::Node &config, const std::string &node_name = "pivot_controller");
+        explicit GeneralBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
 
         virtual ~GeneralBackend();
 
@@ -118,38 +115,11 @@ namespace frankpiv::backend {
 
         virtual void stop();
 
-        virtual bool moveToPoint(const Eigen::Vector3d &point, double roll, const Eigen::Affine3d *frame = nullptr);
+        virtual bool moveToPoint(Eigen::Vector3d point, double roll, const Eigen::Affine3d *frame = nullptr);
 
-        virtual bool movePYRZ(const Eigen::Vector4d &pyrz, bool degrees = false);
+        virtual bool movePYRZ(Eigen::Vector4d pyrz, bool degrees = false);
 
-        virtual bool movePYRZRelative(const Eigen::Vector4d &pyrz, bool degrees = false);
-    };
-
-    class UnattainablePoseException : public std::runtime_error {
-        std::string message;
-        Eigen::Vector2d *boundaries;
-        double *value;
-    public:
-        explicit UnattainablePoseException(const std::string &message, Eigen::Vector2d *boundaries = nullptr,
-                                           double *value = nullptr) : runtime_error(message) {
-            this->message = message;
-            this->boundaries = boundaries;
-            this->value = value;
-        }
-
-        const char *what() {
-            std::stringstream what;
-            what << this->message;
-            if (this->boundaries) {
-                what << "\nboundaries: " << this->boundaries;
-            }
-            if (this->value) {
-                what << "\nvalue: " << this->value;
-            }
-            char what_char = *what.str().c_str();
-            const char *what_char_pointer = &what_char;
-            return what_char_pointer;
-        }
+        virtual bool movePYRZRelative(Eigen::Vector4d pyrz, bool degrees = false);
     };
 }
 

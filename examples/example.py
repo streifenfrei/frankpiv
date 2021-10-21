@@ -3,7 +3,6 @@ from argparse import ArgumentParser
 
 import numpy as np
 
-
 from frankpiv import Controller
 
 if __name__ == '__main__':
@@ -18,9 +17,9 @@ if __name__ == '__main__':
             pitch = (random.random() - 0.5) * 0.7 * np.pi
             yaw = (random.random() - 0.5) * 0.7 * np.pi
             roll = (random.random() - 0.5) * 0.8 * np.pi
-            z_translation = (random.random() - 0.5) * 0.05
+            z_translation = (random.random() - 0.5) * 0.2
             controller.move_pyrz([pitch, yaw, roll, z_translation], False)
         # move to some point in the pivot point frame (reference frame of the controller)
-        controller.move_to_point([0.05, -0.05, 0.1], np.pi)
+        controller.move_to_point([0.15, -0.15, 0.1], np.pi)
         # move to some point in the global frame
-        controller.move_to_point([0.2, 0.1, 0.15], np.pi, [0, 0, 0, 0, 0, 0])
+        controller.move_to_point([0.2, 0.1, 0.], np.pi, [0, 0, 0, 0, 0, 0])

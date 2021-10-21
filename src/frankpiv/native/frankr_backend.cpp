@@ -7,34 +7,29 @@ using namespace Eigen;
 using namespace frankpiv::util;
 
 namespace frankpiv::backend {
-    FrankrBackend::FrankrBackend(const YAML::Node &config, const std::string& node_name) : GeneralBackend(config,
-                                                                                                         node_name) {
-        YAML::Node frankx_config = config["frankr"];
-        this->dynamic_rel = get_config_value<double>(frankx_config, "dynamic_rel")[0];
-        this->robot = nullptr;
-        this->motion_data = nullptr;
-    }
+    FrankrBackend::FrankrBackend(const YAML::Node &config, std::string node_name) :
+            GeneralBackend(config, node_name),
+            dynamic_rel(getConfigValue<double>(config["frankr"], "dynamic_rel")[0]) {}
 
     FrankrBackend::~FrankrBackend() {
         this->stop();
     }
 
     void FrankrBackend::initialize() {
-        this->robot = new Robot(this->getRobotName(), this->dynamic_rel);
-        MotionData _motion_data;
-        this->motion_data = &_motion_data;
+        this->robot = std::make_unique<Robot>(this->getRobotName(), this->dynamic_rel);
+        this->motion_data = std::make_unique<MotionData>();
     }
 
     void FrankrBackend::finish() {
-        this->robot = nullptr;
-        this->motion_data = nullptr;
+        this->robot.release();
+        this->motion_data.release();
     }
 
     Affine3d FrankrBackend::currentPose() {
         return this->robot->currentPose(Affine()).data;
     }
 
-    bool FrankrBackend::moveRobotCartesian(const Affine3d &target_pose) {
+    bool FrankrBackend::moveRobotCartesian(Affine3d target_pose) {
         return this->robot->moveCartesian(Affine(), target_pose, *this->motion_data);
     }
 }

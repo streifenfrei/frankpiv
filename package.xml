@@ -17,6 +17,5 @@
     <depend>moveit_ros_planning</depend>
     <depend>moveit_ros_planning_interface</depend>
     <depend>moveit_planners_ompl</depend>
-
-    <exec_depend>elion_moveit_plugin</exec_depend>
+    <depend>pivot_moveit_plugin</depend>
 </package>

@@ -8,9 +8,8 @@ using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
 using namespace Eigen;
 
 namespace frankpiv::util {
-    Vector3d get_rotation_euler(const Affine3d &affine) {
-        Vector3d angles = EulerAngles<double, EulerSystemXYZ>::FromRotation<false, false, false>(
-                affine.rotation()).angles();
+    Vector3d getRotationEuler(const Affine3d &affine) {
+        auto angles = EulerAngles<double, EulerSystemXYZ>::FromRotation<false, false, false>(affine.rotation()).angles();
         if (angles[0] > M_PI_2 || angles[0] < -M_PI_2) {
             angles << angles[0] - M_PI, M_PI - angles[1], angles[2] - M_PI;
             if (angles[0] < -M_PI) {
@@ -42,8 +41,8 @@ namespace frankpiv::util {
         return clip(n, boundaries(0), boundaries(1));
     }
 
-    geometry_msgs::Point to_point_msg(const Affine3d &affine) {
-        Vector3d point_eigen = affine.translation();
+    geometry_msgs::Point toPointMsg(const Affine3d &affine) {
+        auto point_eigen = affine.translation();
         geometry_msgs::Point point;
         point.x = point_eigen(0);
         point.y = point_eigen(1);
@@ -51,7 +50,7 @@ namespace frankpiv::util {
         return point;
     }
 
-    geometry_msgs::Quaternion to_quat_msg(const Matrix3d &rotation) {
+    geometry_msgs::Quaternion toQuatMsg(const Matrix3d &rotation) {
         Quaterniond quaternion(rotation);
         geometry_msgs::Quaternion message;
         message.w = quaternion.w();
@@ -61,35 +60,32 @@ namespace frankpiv::util {
         return message;
     }
 
-    geometry_msgs::Pose to_pose_msg(const Affine3d &affine) {
-        geometry_msgs::Point position = to_point_msg(affine);
-        Matrix3d rotation;
-        rotation = affine.rotation();
-        geometry_msgs::Quaternion orientation = to_quat_msg(rotation);
+    geometry_msgs::Pose toPoseMsg(const Affine3d &affine) {
+        geometry_msgs::Point position = toPointMsg(affine);
+        Matrix3d rotation = affine.rotation();
+        geometry_msgs::Quaternion orientation = toQuatMsg(rotation);
         geometry_msgs::Pose pose;
         pose.position = position;
         pose.orientation = orientation;
         return pose;
     }
 
-    Affine3d to_affine(const geometry_msgs::PoseStamped &msg) {
+    Affine3d toAffine(const geometry_msgs::PoseStamped &msg) {
         geometry_msgs::Point position = msg.pose.position;
         geometry_msgs::Quaternion orientation = msg.pose.orientation;
-        Affine3d affine;
-        affine = Translation3d(position.x, position.y, position.z) *
-                 Quaternion(orientation.w, orientation.x, orientation.y, orientation.z);
+        Affine3d affine = Translation3d(position.x, position.y, position.z) * Quaternion(orientation.w, orientation.x, orientation.y, orientation.z);
         return affine;
     }
 
-    Affine3d to_affine(const std::array<double, 6> &array) {
+    Affine3d toAffine(const std::array<double, 6> &array) {
         Affine3d affine;
         affine = Translation3d(array[0], array[1], array[2]) * Euler(array[3], array[4], array[5]).toRotationMatrix();
         return affine;
     }
 
-    std::array<double, 6> to_array(const Eigen::Affine3d &affine) {
+    std::array<double, 6> toArray(const Eigen::Affine3d &affine) {
         Eigen::Matrix<double, 6, 1> matrix;
-        matrix << affine.translation(), get_rotation_euler(affine);
+        matrix << affine.translation(), getRotationEuler(affine);
         return {matrix(0), matrix(1), matrix(2), matrix(3), matrix(4), matrix(5)};
     }
 }

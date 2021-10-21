@@ -10,7 +10,7 @@ namespace frankpiv::backend {
     private:
         std::string fci_ip;
         double dynamic_rel;
-        frankx::Robot *robot;
+        std::unique_ptr <frankx::Robot> robot;
     protected:
         void initialize() override;
 
@@ -18,10 +18,10 @@ namespace frankpiv::backend {
 
         Eigen::Affine3d currentPose() override;
 
-        bool moveRobotCartesian(const Eigen::Affine3d &target_pose) override;
+        bool moveRobotCartesian(Eigen::Affine3d target_pose) override;
 
     public:
-        explicit FrankxBackend(const YAML::Node &config, const std::string& node_name = "pivot_controller");
+        explicit FrankxBackend(const YAML::Node &config, std::string node_name = "pivot_controller");
 
         ~FrankxBackend() override;
     };

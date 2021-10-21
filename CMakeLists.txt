@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
+set(CMAKE_CXX_STANDARD 17)
 project(frankpiv)
 
-set(CMAKE_CXX_STANDARD 17)
 add_definitions("-fPIC")
 
 # DEPENDENCIES
@@ -22,6 +22,7 @@ add_subdirectory(dependencies)
 
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package(Boost REQUIRED COMPONENTS thread)
+find_package(ompl REQUIRED) # required for the moveit_planner
 
 
 # CATKIN
@@ -45,7 +46,7 @@ endif ()
 if (PYTHON_BINDING)
     find_package(pybind11 REQUIRED)
     catkin_python_setup()
-endif()
+endif ()
 
 catkin_package(
         INCLUDE_DIRS
@@ -63,7 +64,6 @@ catkin_package(
 )
 
 
-
 # FRANKPIV
 set(BACKEND_SOURCES "")
 foreach (BACKEND ${BACKENDS})
@@ -72,13 +72,18 @@ endforeach ()
 add_library(
         ${PROJECT_NAME} SHARED
         src/frankpiv/native/controller.cpp
-        src/frankpiv/native/general_backend.cpp
         src/frankpiv/native/utilities.cpp
+        src/frankpiv/native/pivot_frame.cpp
+        src/frankpiv/native/general_backend.cpp
         src/frankpiv/native/moveit_backend.cpp
         ${BACKEND_SOURCES}
+        src/frankpiv/native/moveit_planner/planner_manager.cpp
+        src/frankpiv/native/moveit_planner/planning_context.cpp
+        #src/frankpiv/native/moveit_planner/state_sampler.cpp
+        src/frankpiv/native/moveit_planner/validity_checker.cpp
 )
-target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS} include)
-target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS})
+target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS} ${OMPL_LIBRARIES})
 
 # EXAMPLE
 add_executable(example examples/example.cpp)
@@ -89,15 +94,15 @@ if (PYTHON_BINDING)
     pybind11_add_module(frankpyv src/frankpiv/native/python.cpp)
     target_link_libraries(frankpyv PUBLIC frankpiv)
     set_target_properties(frankpyv PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION})
-endif()
+endif ()
 
 # post build script
 if (PYTHON_BINDING)
     set(PYTHON_BINDING true)
-else()
+else ()
     set(PYTHON_BINDING false)
-endif()
-    configure_file(post_build.sh ${CMAKE_CURRENT_BINARY_DIR}/post_build_ready.sh FILE_PERMISSIONS OWNER_READ OWNER_EXECUTE @ONLY)
+endif ()
+configure_file(post_build.sh ${CMAKE_CURRENT_BINARY_DIR}/post_build_ready.sh FILE_PERMISSIONS OWNER_READ OWNER_EXECUTE @ONLY)
 add_custom_command(
         TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/post_build_ready.sh)

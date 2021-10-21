@@ -1,404 +1,231 @@
-#include "ros/ros.h"
+#include <unsupported/Eigen/EulerAngles>
+#include <ros/ros.h>
+
 #include "frankpiv/general_backend.hpp"
 #include "frankpiv/utilities.hpp"
-#include <unsupported/Eigen/EulerAngles>
+#include "frankpiv/exceptions.hpp"
 
 using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
 
 using namespace Eigen;
 using namespace frankpiv::util;
+using namespace frankpiv::exceptions;
 
 namespace frankpiv::backend {
-    GeneralBackend::GeneralBackend(const YAML::Node &config, const std::string &node_name) : ROSNode(node_name) {
-        // configuration
-        this->initial_eef_ppoint_distance = get_config_value<double>(config, "eef_ppoint_distance")[0];
-        this->tool_length = get_config_value<double>(config, "tool_length")[0];
-        this->max_angle = rad(get_config_value<double>(config, "max_angle")[0]);
-        this->roll_boundaries = Vector2d(
-                rad(get_config_value<double>(config, "roll_boundaries")[0]),
-                rad(get_config_value<double>(config, "roll_boundaries")[1]));
-        this->z_translation_boundaries = Vector2d(
-                get_config_value<double>(config, "z_translation_boundaries")[0],
-                get_config_value<double>(config, "z_translation_boundaries")[1]);
-        this->clip_to_boundaries = get_config_value<bool>(config, "clip_to_boundaries")[0];
-        this->move_directly = get_config_value<bool>(config, "move_directly")[0];
-        // robotic stuff
-        this->robot_name = get_config_value<std::string>(config, "robot_name")[0];
-        this->reference_frame = Affine3d();
-        // ROS / visualization
-        this->spinner.start();
-        this->node_handle = ros::NodeHandle();
+    // ====================================================================================================================================================
+    // Maybe replace config based constructor with real one and move config initialization to wrapper class (frankpiv::Controller) or some factory function
+    // ====================================================================================================================================================
+    GeneralBackend::GeneralBackend(const YAML::Node &config, std::string node_name) :
+            ROSNode(node_name),
+            initial_eef_ppoint_distance_(getConfigValue<double>(config, "eef_ppoint_distance")[0]),
+            tool_length_(getConfigValue<double>(config, "tool_length")[0]),
+            error_tolerance_(getConfigValue<double>(config, "pivot_error_tolerance")[0]),
+            max_angle_(rad(getConfigValue<double>(config, "max_angle")[0])),
+            roll_boundaries_(Vector2d(rad(getConfigValue<double>(config, "roll_boundaries")[0]), rad(getConfigValue<double>(config, "roll_boundaries")[1]))),
+            z_translation_boundaries_(Vector2d(getConfigValue<double>(config, "z_translation_boundaries")[0], getConfigValue<double>(config, "z_translation_boundaries")[1])),
+            clip_to_boundaries_(getConfigValue<bool>(config, "clip_to_boundaries")[0]),
+            move_directly_(getConfigValue<bool>(config, "move_directly")[0]),
+            robot_name_(getConfigValue<std::string>(config, "robot_name")[0]),
+            pivot_frame(std::make_shared<frankpiv::PivotFrame>(Affine3d()))
 #ifdef VISUALIZATION
-        this->visualize = get_config_value<bool>(config, "visualize")[0];
-        std::string topic = get_config_value<std::string>(config, "marker_topic")[0];
-        this->visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle));
+    ,visualize_(getConfigValue<bool>(config, "visualize")[0])
+#endif
+    {
+        this->spinner_.start();
+#ifdef VISUALIZATION
+        std::string topic = getConfigValue<std::string>(config, "marker_topic")[0];
+        this->visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle_));
 #endif
     }
 
     GeneralBackend::~GeneralBackend() {
         this->stop();
-        this->spinner.stop();
-        this->node_handle.shutdown();
+        this->spinner_.stop();
+        this->node_handle_.shutdown();
     }
 
-    void GeneralBackend::start(Eigen::Affine3d *reference_frame_) {
+    void GeneralBackend::start(Affine3d *reference_frame) {
         this->initialize();
-        if (reference_frame_) {
-            this->setReferenceFrame(*reference_frame_);
+        if (reference_frame) {
+            this->reference_frame(*reference_frame);
         } else {
-            this->reference_frame = this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance);
+            this->reference_frame(this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance_));
         }
 #ifdef VISUALIZATION
-        if (this->visualize) {
-            this->reset_markers();
+        if (this->visualize_) {
+            this->resetMarkers();
         }
 #endif
     }
 
     void GeneralBackend::stop() {
 #ifdef VISUALIZATION
-        if (this->visualize) {
+        if (this->visualize_) {
             this->visual_tools->deleteAllMarkers();
         }
 #endif
         this->finish();
     }
 
-    bool GeneralBackend::clipPose(Affine3d &pose, double *out_angle) {
-        Affine3d &pose_local = pose;
-        Vector3d point;
-        point << pose_local.translation();
-        double z_translation = point[2] >= 0. ? point.norm() : -point.norm();
-        Vector3d z_axis = point[2] >= 0. ? Vector3d(0, 0, 1) : Vector3d(0, 0, -1);
-        double angle;
-        if (point[0] == 0. && point[1] == 0. &&
-            point[2] == 0.) { // point lies in the origin -> add offset to calculate angle
-            Vector3d point_offset;
-            point_offset = (pose_local * Translation3d(0, 0, 1)).translation();
-            angle = point_offset.dot(z_axis);
-        } else {
-            angle = point.dot(z_axis) / z_translation;
-        }
-        angle = -acos(angle);
-        if (out_angle) {
-            *out_angle = angle;
-        }
-        // clip pose if angle or z-translation are outside the specified boundaries
-        if (angle < -this->max_angle || angle > this->max_angle ||
-            z_translation < this->z_translation_boundaries(0) ||
-            z_translation > this->z_translation_boundaries(1)) {
-            // calculate clipped point by rotating along the rotation axis and translate along the z axis
-            angle = clip(angle, -this->max_angle, this->max_angle);
-            z_translation = clip(z_translation, this->z_translation_boundaries);
-            Vector3d rotation_axis = point.cross(z_axis);
-            rotation_axis /= rotation_axis.norm();
-            Affine3d clipped_pose;
-            clipped_pose = AngleAxisd(angle, rotation_axis) * Translation3d(0, 0, z_translation);
-            pose = clipped_pose;
-            return true;
-        }
-        return false;
+    bool GeneralBackend::moveToPoint(Vector3d point, double roll, const Affine3d *frame) {
+        auto pyrz = this->pivot_frame->getPYRZ(point, roll, frame);
+        pyrz(3) = pyrz(3) - this->tool_length_ + this->initial_eef_ppoint_distance_;
+        return this->movePYRZ(pyrz);
     }
 
-    Vector4d GeneralBackend::poseToPYRZ(const Affine3d &pose) {
-        Vector3d point = pose.translation();
-        double distance = point.norm();
-        double z_translation = point(2) >= 0 ? distance : -distance;
-        Affine3d inOrigin = pose * Translation3d(0, 0, -z_translation);
-        Vector3d orientation = get_rotation_euler(inOrigin);
-        return Vector4d(orientation(0), orientation(1), orientation(2), z_translation);
-    }
-
-    bool GeneralBackend::moveToPoint(const Vector3d &point, double roll, const Affine3d *frame) {
-        if (roll < this->roll_boundaries(0) || roll > this->roll_boundaries(1)) {
-            throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries,
-                                            &roll);
-        }
-        roll = clip(roll, this->roll_boundaries);
-        Affine3d converted_point;
-        converted_point = Translation3d(point);
-        if (frame) {
-            // convert target point to the reference frame
-            converted_point = *frame * converted_point;
-            converted_point = this->reference_frame.inverse() * converted_point;
-        }
-        Vector3d target_point = converted_point.translation();
-        Affine3d target_pose = Affine3d::Identity();
-        if (target_point(0) != 0 || target_point(1) != 0 || target_point(2) != 0) {  // target point is the origin
-            if (target_point(2) < 0.) {
-                throw UnattainablePoseException("Point must have positive z value in the pivot point frame", nullptr,
-                                                &target_point(2));
-            }
-            double distance = target_point.norm();
-            double angle = -acos(target_point.dot(Vector3d(0, 0, 1)) / distance);
-            if (angle != 0.) {
-                // we rotate and translate to the target point to get the target rotation
-                Vector3d rotation_axis = target_point.cross(Vector3d(0, 0, 1));
-                rotation_axis /= rotation_axis.norm();
-                target_pose = AngleAxis(angle, rotation_axis).toRotationMatrix();
-            }
-            double z_translation = distance - this->tool_length + this->initial_eef_ppoint_distance;
-            target_pose = target_pose * Translation3d(0, 0, z_translation);
-        }
-        if (this->move_directly) {
-            auto *angle = new double();
-            bool clipped = this->clipPose(target_pose, angle);
-            if (clipped and !this->clip_to_boundaries) {
-                Vector2d angle_boundaries = Vector2d(this->max_angle, this->max_angle);
-                throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries,
-                                                angle);
-            }
-
-            // translate to the end effector pose and convert to global frame
-            target_pose = this->reference_frame * (target_pose *
-                                                   (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
-                                                    Euler(0, 0, roll).toRotationMatrix()));
-#ifdef VISUALIZATION
-            if (this->visualize) {
-                this->visual_tools->publishAxis(to_pose_msg(target_pose));
-                this->visual_tools->publishSphere(to_pose_msg(target_pose * Translation3d(0, 0, this->tool_length)));
-                this->visual_tools->trigger();
-            }
-#endif
-            bool status = this->moveRobotCartesian(target_pose);
-#ifdef VISUALIZATION
-            if (this->visualize) {
-                this->reset_markers();
-            }
-#endif
-            return status;
-        } else {
-            Vector4d target_pyrz = this->poseToPYRZ(target_pose);
-            return this->movePYRZ(target_pyrz);
-        }
-    }
-
-    bool GeneralBackend::movePYRZ(const Vector4d &pyrz, bool degrees) {
+    bool GeneralBackend::movePYRZ(Vector4d pyrz, bool degrees) {
         // prepare input
-        double pitch = pyrz(0);
-        double yaw = pyrz(1);
-        double roll = pyrz(2);
-        double z_translation = pyrz(3);
         if (degrees) {
-            pitch = rad(pitch);
-            yaw = rad(yaw);
-            roll = rad(roll);
+            pyrz(0) = rad(pyrz(0));
+            pyrz(1) = rad(pyrz(1));
+            pyrz(2) = rad(pyrz(2));
         }
-        if (!this->clip_to_boundaries) {
-            if (roll < this->roll_boundaries(0) || roll > this->roll_boundaries(1)) {
-                throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries,
-                                                &roll);
+        if (!this->clip_to_boundaries_) {
+            if (pyrz(2) < this->roll_boundaries_(0) || pyrz(2) > this->roll_boundaries_(1)) {
+                throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries_, &pyrz(2));
             }
-            if (z_translation < this->z_translation_boundaries(0) ||
-                z_translation > this->z_translation_boundaries(1)) {
-                throw UnattainablePoseException("Z-translation value is outside of specified boundaries",
-                                                &this->z_translation_boundaries, &z_translation);
+            if (pyrz(3) < this->z_translation_boundaries_(0) || pyrz(3) > this->z_translation_boundaries_(1)) {
+                throw UnattainablePoseException("Z-translation value is outside of specified boundaries", &this->z_translation_boundaries_, &pyrz(3));
+            }
+            double angle = this->pivot_frame->getAngle(pyrz);
+            if (angle < -this->max_angle_ || angle > this->max_angle_) {
+                Vector2d angle_boundaries = Vector2d(-this->max_angle_, this->max_angle_);
+                throw UnattainablePoseException("PY angle is outside of specified boundaries", &angle_boundaries, &angle);
             }
         }
-        roll = clip(roll, this->roll_boundaries);
-        z_translation = clip(z_translation, this->z_translation_boundaries);
-        // calculate target pose
-        double new_eef_ppoint_distance = this->initial_eef_ppoint_distance - z_translation;
-        Affine3d target_affine = Euler(pitch, yaw, 0).toRotationMatrix() * Translation3d(0, 0, z_translation);
-        auto *angle = new double();
-        bool clipped = this->clipPose(target_affine, angle);
-        if (clipped) {
-            if (!this->clip_to_boundaries) {
-                Vector2d angle_boundaries = Vector2d(this->max_angle, this->max_angle);
-                throw UnattainablePoseException("Target point lies outside of specified boundaries", &angle_boundaries,
-                                                angle);
-            }
-            Vector4d target_pyrz = this->poseToPYRZ(target_affine);
-            pitch = target_pyrz(0);
-            yaw = target_pyrz(1);
-        }
-        target_affine = this->reference_frame * (target_affine *
-                                                 (Translation3d(0, 0, -this->initial_eef_ppoint_distance) *
-                                                  Euler(0, 0, roll).toRotationMatrix()));
+        pyrz(2) = clip(pyrz(2), this->roll_boundaries_);
+        pyrz(3) = clip(pyrz(3), this->z_translation_boundaries_) - this->initial_eef_ppoint_distance_;
+        this->pivot_frame->clipAngle(pyrz, this->max_angle_);
+        auto target_pose = this->pivot_frame->getPose(pyrz);
         // move the robot
 #ifdef VISUALIZATION
-        if (this->visualize) {
-            this->visual_tools->publishAxis(to_pose_msg(target_affine));
-            this->visual_tools->publishSphere(to_pose_msg(target_affine * Translation3d(0, 0, this->tool_length)));
+        if (this->visualize_) {
+            this->visual_tools->publishAxis(toPoseMsg(target_pose));
+            this->visual_tools->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)));
             this->visual_tools->trigger();
         }
 #endif
-        if (!this->move_directly) {
-            Vector4d current_pyrz = this->getCurrentPyrz();
+        if (!this->move_directly_) {
+            auto current_pyrz = this->getCurrentPYRZ();
             double current_pitch = current_pyrz(0);
             double current_yaw = current_pyrz(1);
             double current_roll = current_pyrz(2);
             double current_z_translation = current_pyrz(3);
-            double current_eef_ppoint_distance = this->initial_eef_ppoint_distance - current_z_translation;
+            double current_eef_ppoint_distance = this->initial_eef_ppoint_distance_ - current_z_translation;
+            double new_eef_ppoint_distance = -pyrz(3);
             // if relative z-translation is negative do it before pitch and yaw
-            Affine3d intermediate_affine;
-            intermediate_affine = new_eef_ppoint_distance > current_eef_ppoint_distance ?
-                                  this->reference_frame * (Euler(current_pitch, current_yaw, 0).toRotationMatrix() *
-                                                           (Translation3d(0, 0, -new_eef_ppoint_distance) *
-                                                            Euler(0, 0, roll).toRotationMatrix())) :
-                                  this->reference_frame * (Euler(pitch, yaw, 0).toRotationMatrix() *
-                                                           (Translation3d(0, 0, -current_eef_ppoint_distance) *
-                                                            Euler(0, 0, current_roll).toRotationMatrix()));
-            if (!this->moveRobotCartesian(intermediate_affine)) {
+            auto intermediate_pyrz = new_eef_ppoint_distance > current_eef_ppoint_distance ?
+                                     Vector4d(current_pitch, current_yaw, pyrz(2), pyrz(3)) :
+                                     Vector4d(pyrz(0), pyrz(1), current_roll, -current_eef_ppoint_distance);
+            auto intermediate_affine = this->pivot_frame->getPose(intermediate_pyrz);
+            if (!this->moveRobotCartesian(std::move(intermediate_affine))) {
 #ifdef VISUALIZATION
-                if (this->visualize) {
-                    this->reset_markers();
+                if (this->visualize_) {
+                    this->resetMarkers();
                 }
 #endif
                 return false;
             }
         }
-        bool status = this->moveRobotCartesian(target_affine);
+        bool status = this->moveRobotCartesian(std::move(target_pose));
 #ifdef VISUALIZATION
-        if (this->visualize) {
-            this->reset_markers();
+        if (this->visualize_) {
+            this->resetMarkers();
         }
 #endif
         return status;
     }
 
-    bool GeneralBackend::movePYRZRelative(const Vector4d &pyrz, bool degrees) {
-        Vector4d absolute_pyrz = this->getCurrentPyrz() + pyrz;
-        return this->movePYRZ(absolute_pyrz, degrees);
+    bool GeneralBackend::movePYRZRelative(const Vector4d pyrz, bool degrees) {
+        auto absolute_pyrz = this->getCurrentPYRZ() + pyrz;
+        return this->movePYRZ(std::move(absolute_pyrz), degrees);
     }
 
 #ifdef VISUALIZATION
-
-    void GeneralBackend::reset_markers() {
+    void GeneralBackend::resetMarkers() {
         this->visual_tools->deleteAllMarkers();
-        this->visual_tools->publishAxis(to_pose_msg(this->reference_frame));
+        this->visual_tools->publishAxis(toPoseMsg(this->pivot_frame->reference_frame()));
         this->visual_tools->trigger();
     }
 
-    bool GeneralBackend::isVisualize() const {
-        return visualize;
+    void GeneralBackend::visualize(bool visualize) {
+        if (this->visualize_ != visualize) {
+            this->visualize_ = visualize;
+            if (this->visualize_) {
+                this->resetMarkers();
+            } else {
+                this->visual_tools->deleteAllMarkers();
+                this->visual_tools->trigger();
+            }
+        }
     }
-
-    void GeneralBackend::setVisualize(bool visualize_) {
-        this->reset_markers();
-        GeneralBackend::visualize = visualize_;
-    }
-
 #endif
 
-    double GeneralBackend::getInitialEefPpointDistance() const {
-        return initial_eef_ppoint_distance;
-    }
-
-    double GeneralBackend::getToolLength() const {
-        return tool_length;
-    }
-
-    double GeneralBackend::getMaxAngle() const {
-        return max_angle;
-    }
-
-    const Vector2d &GeneralBackend::getRollBoundaries() const {
-        return roll_boundaries;
-    }
-
-    const Vector2d &GeneralBackend::getZTranslationBoundaries() const {
-        return z_translation_boundaries;
-    }
-
-    bool GeneralBackend::isClipToBoundaries() const {
-        return clip_to_boundaries;
-    }
-
-    bool GeneralBackend::isMoveDirectly() const {
-        return move_directly;
-    }
-
-    const Affine3d &GeneralBackend::getReferenceFrame() const {
-        return reference_frame;
-    }
-
-    Vector4d GeneralBackend::getCurrentPyrz() {
-        Affine3d current_pose = this->reference_frame.inverse() * currentPose();
-        current_pose *= Translation3d(0, 0, this->initial_eef_ppoint_distance);
-        return this->poseToPYRZ(current_pose);
-    }
-
-    double GeneralBackend::getPivotError() {
-        Affine3d current_pose = this->reference_frame.inverse() * currentPose();
-        current_pose *= Translation3d(0, 0, current_pose.translation().norm());
-        return current_pose.translation().norm();
-    }
-
-    const ros::NodeHandle &GeneralBackend::getNodeHandle() const {
-        return node_handle;
-    }
-
-    const std::string &GeneralBackend::getRobotName() const {
-        return robot_name;
-    }
 
     void GeneralBackend::fixCurrentPose() {
-        Affine3d target_pose = this->reference_frame.inverse() * currentPose();
-        target_pose *= Translation3d(0, 0, this->initial_eef_ppoint_distance);
-        bool clipped = this->clipPose(target_pose);
-        if (clipped) {
-            if (!this->clip_to_boundaries) {
+        double pivot_error = this->pivot_frame->getError(this->currentPose());
+        auto current_pyrz = this->getCurrentPYRZ();
+        Vector4d target_pyrz{current_pyrz(0), current_pyrz(1), clip(current_pyrz(2), this->roll_boundaries_), clip(current_pyrz(3), this->z_translation_boundaries_)};
+        this->pivot_frame->clipAngle(target_pyrz, this->max_angle_);
+        if (current_pyrz(0) != target_pyrz(0) || current_pyrz(1) != target_pyrz(1) || current_pyrz(2) != target_pyrz(2) || current_pyrz(3) != target_pyrz(3) || pivot_error > this->error_tolerance_) {
+            if (!this->clip_to_boundaries_) {
                 throw UnattainablePoseException("Current pose is out of boundaries");
             }
-            target_pose =
-                    this->reference_frame * (target_pose * Translation3d(0, 0, -this->initial_eef_ppoint_distance));
-            if (!this->moveRobotCartesian(target_pose)) {
+            target_pyrz(3) -= this->initial_eef_ppoint_distance_;
+            if (!this->moveRobotCartesian(this->pivot_frame->getPose(target_pyrz))) {
                 throw UnattainablePoseException("Failed to fix current pose");
             }
         }
     }
 
-    void GeneralBackend::setInitialEefPpointDistance(double initialEefPpointDistance) {
-        initial_eef_ppoint_distance = initialEefPpointDistance;
+    void GeneralBackend::initial_eef_ppoint_distance(double initial_eef_ppoint_distance) {
+        this->initial_eef_ppoint_distance_ = initial_eef_ppoint_distance;
+        this->z_translation_boundaries(this->z_translation_boundaries_);
+    }
+
+    void GeneralBackend::tool_length(double tool_length) {
+        this->tool_length_ = tool_length;
+        this->z_translation_boundaries(this->z_translation_boundaries_);
+    }
+
+    void GeneralBackend::error_tolerance(double error_tolerance) {
+        this->error_tolerance_ = error_tolerance;
         this->fixCurrentPose();
     }
 
-    void GeneralBackend::setToolLength(double toolLength) {
-        tool_length = toolLength;
+    void GeneralBackend::max_angle(double max_angle) {
+        this->max_angle_ = max_angle;
         this->fixCurrentPose();
     }
 
-    void GeneralBackend::setMaxAngle(double maxAngle) {
-        max_angle = maxAngle;
+    void GeneralBackend::roll_boundaries(Vector2d roll_boundaries) {
+        this->roll_boundaries_ = std::move(roll_boundaries);
         this->fixCurrentPose();
     }
 
-    void GeneralBackend::setRollBoundaries(const Vector2d &rollBoundaries) {
-        roll_boundaries = rollBoundaries;
+    void GeneralBackend::z_translation_boundaries(Vector2d z_translation_boundaries) {
+        this->z_translation_boundaries_ = Vector2d(std::max(z_translation_boundaries(0), this->initial_eef_ppoint_distance_ - this->tool_length_),
+                                                   std::min(z_translation_boundaries(1), this->initial_eef_ppoint_distance_));
         this->fixCurrentPose();
     }
 
-    void GeneralBackend::setZTranslationBoundaries(const Vector2d &zTranslationBoundaries) {
-        z_translation_boundaries = zTranslationBoundaries;
+    void GeneralBackend::reference_frame(Affine3d reference_frame) {
+        this->pivot_frame->reference_frame(reference_frame);
+        bool clip_to_boundaries = this->clip_to_boundaries_;
+        this->clip_to_boundaries_ = true;
         this->fixCurrentPose();
-    }
-
-    void GeneralBackend::setClipToBoundaries(bool clipToBoundaries) {
-        clip_to_boundaries = clipToBoundaries;
-        this->fixCurrentPose();
-    }
-
-    void GeneralBackend::setMoveDirectly(bool moveDirectly) {
-        move_directly = moveDirectly;
-    }
-
-    void GeneralBackend::setReferenceFrame(const Affine3d &referenceFrame) {
-        Affine3d current_pose = this->currentPose();
-        Quaterniond target_orientation = Quaterniond::FromTwoVectors(Eigen::Vector3d::UnitZ(),
-                                                                     referenceFrame.translation() -
-                                                                     current_pose.translation());
-        Affine3d target_pose;
-        target_pose = Translation3d(current_pose.translation()) * target_orientation;
-        if (!this->moveRobotCartesian(target_pose)) {
-            throw UnattainablePoseException("Failed to set reference frame");
-        }
-        reference_frame = referenceFrame;
-        this->fixCurrentPose();
+        this->clip_to_boundaries_ = clip_to_boundaries;
 #ifdef VISUALIZATION
-        if (this->visualize) {
-            this->reset_markers();
+        if (this->visualize_) {
+            this->resetMarkers();
         }
 #endif
+    }
+
+    Vector4d GeneralBackend::getCurrentPYRZ() {
+        auto current_pose = this->currentPose();
+        auto pyrz = this->pivot_frame->getPYRZ(current_pose, &this->error_tolerance_);
+        pyrz(3) += this->initial_eef_ppoint_distance_;
+        return pyrz;
     }
 }

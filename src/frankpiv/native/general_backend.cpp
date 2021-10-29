@@ -19,7 +19,6 @@ namespace frankpiv::backend {
             ROSNode(node_name),
             initial_eef_ppoint_distance_(getConfigValue<double>(config, "eef_ppoint_distance")[0]),
             tool_length_(getConfigValue<double>(config, "tool_length")[0]),
-            error_tolerance_(getConfigValue<double>(config, "pivot_error_tolerance")[0]),
             max_angle_(rad(getConfigValue<double>(config, "max_angle")[0])),
             roll_boundaries_(Vector2d(rad(getConfigValue<double>(config, "roll_boundaries")[0]), rad(getConfigValue<double>(config, "roll_boundaries")[1]))),
             z_translation_boundaries_(Vector2d(getConfigValue<double>(config, "z_translation_boundaries")[0], getConfigValue<double>(config, "z_translation_boundaries")[1])),
@@ -34,7 +33,9 @@ namespace frankpiv::backend {
         this->spinner_.start();
 #ifdef VISUALIZATION
         std::string topic = getConfigValue<std::string>(config, "marker_topic")[0];
-        this->visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle_));
+        this->visual_tools_world.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle_));
+        this->visual_tools_eef.reset(new rviz_visual_tools::RvizVisualTools("panda_link8", topic, this->node_handle_));
+        this->visual_tools_eef->enableFrameLocking();
 #endif
     }
 
@@ -61,7 +62,8 @@ namespace frankpiv::backend {
     void GeneralBackend::stop() {
 #ifdef VISUALIZATION
         if (this->visualize_) {
-            this->visual_tools->deleteAllMarkers();
+            this->visual_tools_world->deleteAllMarkers();
+            this->visual_tools_eef->deleteAllMarkers();
         }
 #endif
         this->finish();
@@ -100,9 +102,9 @@ namespace frankpiv::backend {
         // move the robot
 #ifdef VISUALIZATION
         if (this->visualize_) {
-            this->visual_tools->publishAxis(toPoseMsg(target_pose));
-            this->visual_tools->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)));
-            this->visual_tools->trigger();
+            this->visual_tools_world->publishAxis(toPoseMsg(target_pose));
+            this->visual_tools_world->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)), rviz_visual_tools::BLACK);
+            this->visual_tools_world->trigger();
         }
 #endif
         if (!this->move_directly_) {
@@ -143,9 +145,13 @@ namespace frankpiv::backend {
 
 #ifdef VISUALIZATION
     void GeneralBackend::resetMarkers() {
-        this->visual_tools->deleteAllMarkers();
-        this->visual_tools->publishAxis(toPoseMsg(this->pivot_frame->reference_frame()));
-        this->visual_tools->trigger();
+        this->visual_tools_world->deleteAllMarkers();
+        this->visual_tools_eef->deleteAllMarkers();
+        this->visual_tools_world->publishAxis(toPoseMsg(this->pivot_frame->reference_frame()));
+        this->visual_tools_eef->publishLine(Vector3d(), Vector3d(0, 0, this->tool_length_), rviz_visual_tools::BLACK);
+        // I dont quite understand the trigger behaviour, but in this order the calls dont "cancel" each other at least
+        this->visual_tools_eef->trigger();
+        this->visual_tools_world->trigger();
     }
 
     void GeneralBackend::visualize(bool visualize) {
@@ -154,8 +160,10 @@ namespace frankpiv::backend {
             if (this->visualize_) {
                 this->resetMarkers();
             } else {
-                this->visual_tools->deleteAllMarkers();
-                this->visual_tools->trigger();
+                this->visual_tools_world->deleteAllMarkers();
+                this->visual_tools_eef->deleteAllMarkers();
+                this->visual_tools_world->trigger();
+                this->visual_tools_eef->trigger();
             }
         }
     }

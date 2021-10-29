@@ -40,7 +40,8 @@ namespace frankpiv::backend {
 
 #ifdef VISUALIZATION
         bool visualize_;
-        rviz_visual_tools::RvizVisualToolsPtr visual_tools;
+        rviz_visual_tools::RvizVisualToolsPtr visual_tools_world;
+        rviz_visual_tools::RvizVisualToolsPtr visual_tools_eef;
 
         void resetMarkers();
 #endif
@@ -50,8 +51,6 @@ namespace frankpiv::backend {
     protected:
         std::string robot_name_;
         std::shared_ptr <frankpiv::PivotFrame> pivot_frame;
-
-        double error_tolerance_;
 
         [[nodiscard]] const ros::NodeHandle &node_handle() const { return node_handle_; }
 
@@ -72,7 +71,7 @@ namespace frankpiv::backend {
 
         void tool_length(double tool_length);
 
-        [[nodiscard]] double error_tolerance() const { return error_tolerance_; }
+        [[nodiscard]] double error_tolerance() const { return pivot_frame->error_tolerance(); }
 
         void error_tolerance(double error_tolerance);
 

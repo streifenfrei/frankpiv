@@ -11,19 +11,23 @@ using namespace frankpiv::util;
 using namespace frankpiv::exceptions;
 
 namespace frankpiv {
-    PivotFrame::PivotFrame(Affine3d reference_frame) : reference_frame_(reference_frame) {}
+    PivotFrame::PivotFrame(Affine3d reference_frame, double max_angle, Eigen::Vector2d roll_boundaries, Eigen::Vector2d z_translation_boundaries, double error_tolerance) :
+            reference_frame_(std::move(reference_frame)),
+            max_angle_(max_angle),
+            roll_boundaries_(std::move(roll_boundaries)),
+            z_translation_boundaries_(std::move(z_translation_boundaries)),
+            error_tolerance_(error_tolerance) {
+    }
 
     Vector4d PivotFrame::getPYRZ(const Vector3d &point, double roll, const Affine3d *frame) const {
         return PivotFrame::getPYRZInternal(this->otherToLocalFrame(point, frame), roll);
     }
 
-    Vector4d PivotFrame::getPYRZ(const Affine3d &pose, const double *error_tolerance, const Affine3d *frame) const {
+    Vector4d PivotFrame::getPYRZ(const Affine3d &pose, const Affine3d *frame) const {
         auto local_pose = this->otherToLocalFrame(pose, frame);
-        if (error_tolerance) {
-            double error = this->getErrorInternal(local_pose);
-            if (error > *error_tolerance) {
-                throw CriticalPivotErrorException(error, *error_tolerance);
-            }
+        double error = PivotFrame::getErrorInternal(local_pose);
+        if (error > this->error_tolerance_) {
+            throw CriticalPivotErrorException(error, this->error_tolerance_);
         }
         return PivotFrame::internalPoseToPYRZ(local_pose);
     }
@@ -36,19 +40,23 @@ namespace frankpiv {
         return PivotFrame::getErrorInternal(this->otherToLocalFrame(pose, frame));
     }
 
+    bool PivotFrame::isValid(const Affine3d &pose, const Affine3d *frame) const {
+        return PivotFrame::isValidInternal(this->otherToLocalFrame(pose, frame), this->error_tolerance_);
+    }
+
     double PivotFrame::getAngle(const Vector4d &pyrz) {
         return PivotFrame::getAngleInternal(pyrz);
     }
 
-    bool PivotFrame::clipAngle(Vector4d &pyrz, double max_angle) {
+    bool PivotFrame::clipAngle(Vector4d &pyrz) {
         auto point = new Vector3d();
         auto z_axis = new Vector3d();
         auto z_translation = new double();
         double angle = PivotFrame::getAngleInternal(pyrz, point, z_axis, z_translation);
         bool clipped = false;
-        if (angle < -max_angle || angle > max_angle) {
+        if (angle < -this->max_angle_ || angle > this->max_angle_) {
             // calculate clipped point by rotating along the rotation axis and translate along the z axis
-            angle = clip(angle, -max_angle, max_angle);
+            angle = frankpiv::util::clip(angle, -this->max_angle_, this->max_angle_);
             auto rotation_axis = (*point).cross(*z_axis);
             rotation_axis /= rotation_axis.norm();
             pyrz = PivotFrame::internalPoseToPYRZ(AngleAxisd(angle, rotation_axis) * (Translation3d(0, 0, *z_translation) * Euler(0, 0, pyrz[2]).toRotationMatrix()));
@@ -56,6 +64,22 @@ namespace frankpiv {
         }
         delete point, z_axis, z_translation;
         return clipped;
+    }
+
+    bool PivotFrame::clipRoll(Vector4d &pyrz) {
+        double roll = pyrz(2);
+        pyrz(2) = frankpiv::util::clip(roll, this->roll_boundaries_);
+        return roll != pyrz(2);
+    }
+
+    bool PivotFrame::clipZTranslation(Vector4d &pyrz) {
+        double z_translation = pyrz(3);
+        pyrz(3) = frankpiv::util::clip(z_translation, this->z_translation_boundaries_);
+        return z_translation != pyrz(3);
+    }
+
+    bool PivotFrame::clip(Vector4d &pyrz) {
+        return this->clipAngle(pyrz) | this->clipRoll(pyrz) | this->clipZTranslation(pyrz);
     }
 
     Affine3d PivotFrame::otherToLocalFrame(const Affine3d &pose, const Affine3d *frame) const {
@@ -113,6 +137,11 @@ namespace frankpiv {
         return target_pose.translation().norm();
     }
 
+    bool PivotFrame::isValidInternal(const Affine3d &pose, double error_tolerance) {
+        double error = PivotFrame::getErrorInternal(pose);
+        return error < error_tolerance;
+    }
+
     double PivotFrame::getAngleInternal(const Vector4d &pyrz, Vector3d *point, Vector3d *z_axis, double *z_translation) {
         auto pose_ = PivotFrame::getPoseInternal(pyrz);
         auto point_ = pose_.translation();
@@ -131,7 +160,13 @@ namespace frankpiv {
         if (z_translation) {
             *z_translation = z_translation_;
         }
-        return -acos(point_.dot(z_axis_) / z_translation_);
+        double angle = -acos(point_.dot(z_axis_) / z_translation_);
+        if (angle > M_PI / 2) {
+            angle = M_PI - angle;
+        } else if (angle < -M_PI / 2) {
+            angle = -M_PI - angle;
+        }
+        return angle;
     }
 
 }

@@ -19,18 +19,20 @@ namespace frankpiv::backend {
             ROSNode(node_name),
             initial_eef_ppoint_distance_(getConfigValue<double>(config, "eef_ppoint_distance")[0]),
             tool_length_(getConfigValue<double>(config, "tool_length")[0]),
-            max_angle_(rad(getConfigValue<double>(config, "max_angle")[0])),
-            roll_boundaries_(Vector2d(rad(getConfigValue<double>(config, "roll_boundaries")[0]), rad(getConfigValue<double>(config, "roll_boundaries")[1]))),
             z_translation_boundaries_(Vector2d(getConfigValue<double>(config, "z_translation_boundaries")[0], getConfigValue<double>(config, "z_translation_boundaries")[1])),
             clip_to_boundaries_(getConfigValue<bool>(config, "clip_to_boundaries")[0]),
             move_directly_(getConfigValue<bool>(config, "move_directly")[0]),
-            robot_name_(getConfigValue<std::string>(config, "robot_name")[0]),
-            pivot_frame(std::make_shared<frankpiv::PivotFrame>(Affine3d()))
+            pivot_frame(std::make_shared<frankpiv::PivotFrame>(Affine3d(),
+                                                               rad(getConfigValue<double>(config, "max_angle")[0]),
+                                                               Vector2d(rad(getConfigValue<double>(config, "roll_boundaries")[0]), rad(getConfigValue<double>(config, "roll_boundaries")[1])),
+                                                               Vector2d(-this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(0), -this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(1)),
+                                                               getConfigValue<double>(config, "pivot_error_tolerance")[0]))
 #ifdef VISUALIZATION
     ,visualize_(getConfigValue<bool>(config, "visualize")[0])
 #endif
     {
         this->spinner_.start();
+
 #ifdef VISUALIZATION
         std::string topic = getConfigValue<std::string>(config, "marker_topic")[0];
         this->visual_tools_world.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle_));
@@ -82,22 +84,20 @@ namespace frankpiv::backend {
             pyrz(1) = rad(pyrz(1));
             pyrz(2) = rad(pyrz(2));
         }
-        if (!this->clip_to_boundaries_) {
-            if (pyrz(2) < this->roll_boundaries_(0) || pyrz(2) > this->roll_boundaries_(1)) {
-                throw UnattainablePoseException("Roll value is outside of specified boundaries", &this->roll_boundaries_, &pyrz(2));
-            }
-            if (pyrz(3) < this->z_translation_boundaries_(0) || pyrz(3) > this->z_translation_boundaries_(1)) {
-                throw UnattainablePoseException("Z-translation value is outside of specified boundaries", &this->z_translation_boundaries_, &pyrz(3));
-            }
-            double angle = this->pivot_frame->getAngle(pyrz);
-            if (angle < -this->max_angle_ || angle > this->max_angle_) {
-                Vector2d angle_boundaries = Vector2d(-this->max_angle_, this->max_angle_);
-                throw UnattainablePoseException("PY angle is outside of specified boundaries", &angle_boundaries, &angle);
-            }
+        Vector4d unclipped_pyrz = pyrz;
+        pyrz(3) -= this->initial_eef_ppoint_distance_;
+        if (this->pivot_frame->clipRoll(pyrz) && !this->clip_to_boundaries_) {
+            Vector2d roll_boundaries = this->pivot_frame->roll_boundaries();
+            throw UnattainablePoseException("Roll value is outside of specified boundaries", &roll_boundaries, &unclipped_pyrz(2));
         }
-        pyrz(2) = clip(pyrz(2), this->roll_boundaries_);
-        pyrz(3) = clip(pyrz(3), this->z_translation_boundaries_) - this->initial_eef_ppoint_distance_;
-        this->pivot_frame->clipAngle(pyrz, this->max_angle_);
+        if (this->pivot_frame->clipZTranslation(pyrz) && !this->clip_to_boundaries_) {
+            throw UnattainablePoseException("Z-translation value is outside of specified boundaries", &this->z_translation_boundaries_, &unclipped_pyrz(3));
+        }
+        if (this->pivot_frame->clipAngle(pyrz) && !this->clip_to_boundaries_) {
+            double angle = this->pivot_frame->getAngle(pyrz);
+            Vector2d angle_boundaries = Vector2d(-this->pivot_frame->max_angle(), this->pivot_frame->max_angle());
+            throw UnattainablePoseException("PY angle is outside of specified boundaries", &angle_boundaries, &angle);
+        }
         auto target_pose = this->pivot_frame->getPose(pyrz);
         // move the robot
 #ifdef VISUALIZATION
@@ -169,18 +169,22 @@ namespace frankpiv::backend {
     }
 #endif
 
-
     void GeneralBackend::fixCurrentPose() {
-        double pivot_error = this->pivot_frame->getError(this->currentPose());
-        auto current_pyrz = this->getCurrentPYRZ();
-        Vector4d target_pyrz{current_pyrz(0), current_pyrz(1), clip(current_pyrz(2), this->roll_boundaries_), clip(current_pyrz(3), this->z_translation_boundaries_)};
-        this->pivot_frame->clipAngle(target_pyrz, this->max_angle_);
-        if (current_pyrz(0) != target_pyrz(0) || current_pyrz(1) != target_pyrz(1) || current_pyrz(2) != target_pyrz(2) || current_pyrz(3) != target_pyrz(3) || pivot_error > this->error_tolerance_) {
+        bool critical_pivot_error = false;
+        Vector4d pyrz;
+        try {
+            pyrz = this->getCurrentPYRZ();
+        } catch (const CriticalPivotErrorException &exception) {
+            auto current_position = this->currentPose().translation();
+            pyrz = this->pivot_frame->getPYRZ(current_position, 0);
+            critical_pivot_error = true;
+        }
+        pyrz(3) -= this->initial_eef_ppoint_distance_;
+        if (critical_pivot_error | this->pivot_frame->clip(pyrz)) {
             if (!this->clip_to_boundaries_) {
                 throw UnattainablePoseException("Current pose is out of boundaries");
             }
-            target_pyrz(3) -= this->initial_eef_ppoint_distance_;
-            if (!this->moveRobotCartesian(this->pivot_frame->getPose(target_pyrz))) {
+            if (!this->moveRobotCartesian(this->pivot_frame->getPose(pyrz))) {
                 throw UnattainablePoseException("Failed to fix current pose");
             }
         }
@@ -197,23 +201,25 @@ namespace frankpiv::backend {
     }
 
     void GeneralBackend::error_tolerance(double error_tolerance) {
-        this->error_tolerance_ = error_tolerance;
+        this->pivot_frame->error_tolerance(error_tolerance);
         this->fixCurrentPose();
     }
 
     void GeneralBackend::max_angle(double max_angle) {
-        this->max_angle_ = max_angle;
+        this->pivot_frame->max_angle(max_angle);
         this->fixCurrentPose();
     }
 
     void GeneralBackend::roll_boundaries(Vector2d roll_boundaries) {
-        this->roll_boundaries_ = std::move(roll_boundaries);
+        this->pivot_frame->roll_boundaries(Vector2d(std::max(roll_boundaries(0), -M_PI), std::min(roll_boundaries(1), M_PI)));
         this->fixCurrentPose();
     }
 
     void GeneralBackend::z_translation_boundaries(Vector2d z_translation_boundaries) {
         this->z_translation_boundaries_ = Vector2d(std::max(z_translation_boundaries(0), this->initial_eef_ppoint_distance_ - this->tool_length_),
                                                    std::min(z_translation_boundaries(1), this->initial_eef_ppoint_distance_));
+        this->pivot_frame->z_translation_boundaries(Vector2d(-this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(0),
+                                                             -this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(1)));
         this->fixCurrentPose();
     }
 
@@ -232,8 +238,9 @@ namespace frankpiv::backend {
 
     Vector4d GeneralBackend::getCurrentPYRZ() {
         auto current_pose = this->currentPose();
-        auto pyrz = this->pivot_frame->getPYRZ(current_pose, &this->error_tolerance_);
+        auto pyrz = this->pivot_frame->getPYRZ(current_pose);
         pyrz(3) += this->initial_eef_ppoint_distance_;
         return pyrz;
     }
+
 }

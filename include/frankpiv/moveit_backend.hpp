@@ -11,14 +11,17 @@
 namespace frankpiv::backend {
     class MoveitBackend : public GeneralBackend {
     private:
-        float eef_step;
-        float jump_threshold;
         moveit::planning_interface::MoveGroupInterfacePtr robot;
         planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor;
-        frankpiv::moveit_planner::PivotPlannerManagerPtr planner_instance;
+        frankpiv::moveit_planner::PivotPlanningContextPtr planning_context;
 
     protected:
+        // TODO make parameter
+        inline static const std::string MOVE_GROUP_NAME = "panda_arm";
+
         void initialize() override;
+
+        void start(Eigen::Affine3d *reference_frame) override;
 
         void finish() override;
 

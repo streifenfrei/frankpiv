@@ -1,6 +1,7 @@
 #include <utility>
 
 #include "frankpiv/frankr_backend.hpp"
+#include "frankpiv/moveit_backend.hpp"
 #include "frankpiv/utilities.hpp"
 
 using namespace Eigen;
@@ -16,7 +17,7 @@ namespace frankpiv::backend {
     }
 
     void FrankrBackend::initialize() {
-        this->robot = std::make_unique<Robot>(this->getRobotName(), this->dynamic_rel);
+        this->robot = std::make_unique<Robot>(MoveitBackend::MOVE_GROUP_NAME, this->dynamic_rel);
         this->motion_data = std::make_unique<MotionData>();
     }
 

@@ -77,9 +77,7 @@ add_library(
         src/frankpiv/native/general_backend.cpp
         src/frankpiv/native/moveit_backend.cpp
         ${BACKEND_SOURCES}
-        src/frankpiv/native/moveit_planner/planner_manager.cpp
-        src/frankpiv/native/moveit_planner/planning_context.cpp
-        #src/frankpiv/native/moveit_planner/state_sampler.cpp
+        src/frankpiv/native/moveit_planner/state_sampler.cpp
         src/frankpiv/native/moveit_planner/validity_checker.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})

@@ -8,23 +8,24 @@
 
 #include "frankpiv/moveit_backend.hpp"
 #include "frankpiv/utilities.hpp"
+#include "frankpiv/moveit_planner/planning_context.hpp"
 
 using namespace Eigen;
 using namespace frankpiv::util;
 
 namespace frankpiv::backend {
     MoveitBackend::MoveitBackend(const YAML::Node &config, const std::string &node_name, bool async_motion) :
-            GeneralBackend(config, node_name),
-            eef_step(getConfigValue<float>(config["moveit"], "eef_step")[0]),
-            jump_threshold(getConfigValue<float>(config["moveit"], "jump_threshold")[0]),
-            planner_instance(std::make_shared<frankpiv::moveit_planner::PivotPlannerManager>()) {}
+            GeneralBackend(config, node_name) {}
 
     void MoveitBackend::initialize() {
-        this->robot = std::make_shared<moveit::planning_interface::MoveGroupInterface>(this->robot_name_);
+        this->robot = std::make_shared<moveit::planning_interface::MoveGroupInterface>(MoveitBackend::MOVE_GROUP_NAME);
+        this->planning_context = std::make_shared<frankpiv::moveit_planner::PivotPlanningContext>("pivot_planning_context", this->robot->getRobotModel(), MoveitBackend::MOVE_GROUP_NAME, this->pivot_frame);
         this->planning_scene_monitor = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>("robot_description");
-        if (!this->planner_instance->initialize(this->robot->getRobotModel(), "/move_group"))
-            ROS_FATAL_STREAM("Could not initialize planner instance");
-        this->planner_instance->setPivotFrame(this->pivot_frame);
+    }
+
+    void MoveitBackend::start(Affine3d *reference_frame) {
+        GeneralBackend::start(reference_frame);
+        this->planning_context->preSample(0.025, 0.001, 4);
     }
 
     void MoveitBackend::finish() {
@@ -37,10 +38,10 @@ namespace frankpiv::backend {
     }
 
     bool MoveitBackend::moveRobotCartesian(Eigen::Affine3d target_pose) {
-        const robot_state::JointModelGroup *joint_model_group = this->robot->getCurrentState()->getJointModelGroup(this->robot_name_);
+        const robot_state::JointModelGroup *joint_model_group = this->robot->getCurrentState()->getJointModelGroup(MoveitBackend::MOVE_GROUP_NAME);
         // prepare request
         planning_interface::MotionPlanRequest request;
-        request.group_name = this->robot_name_;
+        request.group_name = MoveitBackend::MOVE_GROUP_NAME;
         const robot_state::RobotState start_state = *this->robot->getCurrentState();
         moveit::core::robotStateToRobotStateMsg(start_state, request.start_state);
         robot_state::RobotState target_state(this->robot->getRobotModel());
@@ -51,12 +52,12 @@ namespace frankpiv::backend {
         auto target_joints = kinematic_constraints::constructGoalConstraints(target_state, joint_model_group, 0.001);
         request.goal_constraints.push_back(target_joints);
         // TODO make parameter
-        request.planner_id = "RRTConnect";
         request.allowed_planning_time = 200.0;
         // solve
         planning_interface::MotionPlanResponse response;
-        auto context = this->planner_instance->getPlanningContext(this->planning_scene_monitor->getPlanningScene(), request, response.error_code_);
-        if (!context->solve(response)) {
+        this->planning_context->setPlanningScene(this->planning_scene_monitor->getPlanningScene());
+        this->planning_context->setMotionPlanRequest(request);
+        if (!this->planning_context->solve(response)) {
             ROS_ERROR_STREAM("Motion failed during planning");
             return false;
         }

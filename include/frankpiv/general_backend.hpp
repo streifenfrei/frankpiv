@@ -30,8 +30,6 @@ namespace frankpiv::backend {
     private:
         double initial_eef_ppoint_distance_;
         double tool_length_;
-        double max_angle_;
-        Eigen::Vector2d roll_boundaries_;
         Eigen::Vector2d z_translation_boundaries_;
         bool clip_to_boundaries_;
         bool move_directly_;
@@ -49,7 +47,6 @@ namespace frankpiv::backend {
         void fixCurrentPose();
 
     protected:
-        std::string robot_name_;
         std::shared_ptr <frankpiv::PivotFrame> pivot_frame;
 
         [[nodiscard]] const ros::NodeHandle &node_handle() const { return node_handle_; }
@@ -75,15 +72,15 @@ namespace frankpiv::backend {
 
         void error_tolerance(double error_tolerance);
 
-        [[nodiscard]] double max_angle() const { return max_angle_; }
+        [[nodiscard]] double max_angle() const { return this->pivot_frame->max_angle(); }
 
         void max_angle(double max_angle);
 
-        [[nodiscard]] Eigen::Vector2d roll_boundaries() const { return roll_boundaries_; }
+        [[nodiscard]] Eigen::Vector2d roll_boundaries() const { return this->pivot_frame->roll_boundaries(); }
 
         void roll_boundaries(Eigen::Vector2d roll_boundaries);
 
-        [[nodiscard]] Eigen::Vector2d z_translation_boundaries() const { return z_translation_boundaries_; }
+        [[nodiscard]] Eigen::Vector2d z_translation_boundaries() const { return this->pivot_frame->z_translation_boundaries(); }
 
         void z_translation_boundaries(Eigen::Vector2d z_translation_boundaries);
 

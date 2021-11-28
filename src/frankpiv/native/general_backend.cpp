@@ -98,10 +98,10 @@ namespace frankpiv::backend {
             Vector2d angle_boundaries = Vector2d(-this->pivot_frame->max_angle(), this->pivot_frame->max_angle());
             throw UnattainablePoseException("PY angle is outside of specified boundaries", &angle_boundaries, &angle);
         }
-        auto target_pose = this->pivot_frame->getPose(pyrz);
         // move the robot
 #ifdef VISUALIZATION
         if (this->visualize_) {
+            auto target_pose = this->pivot_frame->getPose(pyrz);
             this->visual_tools_world->publishAxis(toPoseMsg(target_pose));
             this->visual_tools_world->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)), rviz_visual_tools::BLACK);
             this->visual_tools_world->trigger();
@@ -109,18 +109,13 @@ namespace frankpiv::backend {
 #endif
         if (!this->move_directly_) {
             auto current_pyrz = this->getCurrentPYRZ();
-            double current_pitch = current_pyrz(0);
-            double current_yaw = current_pyrz(1);
-            double current_roll = current_pyrz(2);
-            double current_z_translation = current_pyrz(3);
-            double current_eef_ppoint_distance = this->initial_eef_ppoint_distance_ - current_z_translation;
+            double current_eef_ppoint_distance = this->initial_eef_ppoint_distance_ - current_pyrz(3);
             double new_eef_ppoint_distance = -pyrz(3);
             // if relative z-translation is negative do it before pitch and yaw
             auto intermediate_pyrz = new_eef_ppoint_distance > current_eef_ppoint_distance ?
-                                     Vector4d(current_pitch, current_yaw, pyrz(2), pyrz(3)) :
-                                     Vector4d(pyrz(0), pyrz(1), current_roll, -current_eef_ppoint_distance);
-            auto intermediate_affine = this->pivot_frame->getPose(intermediate_pyrz);
-            if (!this->moveRobotCartesian(std::move(intermediate_affine))) {
+                                     Vector4d(current_pyrz(0), current_pyrz(1), pyrz(2), pyrz(3)) :
+                                     Vector4d(pyrz(0), pyrz(1), current_pyrz(2), -current_eef_ppoint_distance);
+            if (!this->moveRobotPYRZ(std::move(intermediate_pyrz))) {
 #ifdef VISUALIZATION
                 if (this->visualize_) {
                     this->resetMarkers();
@@ -129,7 +124,7 @@ namespace frankpiv::backend {
                 return false;
             }
         }
-        bool status = this->moveRobotCartesian(std::move(target_pose));
+        bool status = this->moveRobotPYRZ(std::move(pyrz));
 #ifdef VISUALIZATION
         if (this->visualize_) {
             this->resetMarkers();
@@ -184,7 +179,7 @@ namespace frankpiv::backend {
             if (!this->clip_to_boundaries_) {
                 throw UnattainablePoseException("Current pose is out of boundaries");
             }
-            if (!this->moveRobotCartesian(this->pivot_frame->getPose(pyrz))) {
+            if (!this->moveRobotPYRZ(pyrz)) {
                 throw UnattainablePoseException("Failed to fix current pose");
             }
         }

@@ -30,7 +30,7 @@ namespace frankpiv::backend {
         return this->robot->currentPose(Affine()).data;
     }
 
-    bool FrankrBackend::moveRobotCartesian(Affine3d target_pose) {
-        return this->robot->moveCartesian(Affine(), target_pose, *this->motion_data);
+    bool FrankrBackend::moveRobotPYRZ(Vector4d pyrz) {
+        return this->robot->moveCartesian(Affine(), this->pivot_frame->getPose(std::move(pyrz)), *this->motion_data);
     }
 }

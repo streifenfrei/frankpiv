@@ -57,7 +57,7 @@ namespace frankpiv::backend {
 
         virtual Eigen::Affine3d currentPose() = 0;
 
-        virtual bool moveRobotCartesian(Eigen::Affine3d target_pose) = 0;
+        virtual bool moveRobotPYRZ(Eigen::Vector4d pyrz) = 0;
 
     public:
         [[nodiscard]] double initial_eef_ppoint_distance() const { return initial_eef_ppoint_distance_; }

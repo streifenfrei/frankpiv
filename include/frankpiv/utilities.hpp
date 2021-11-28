@@ -4,15 +4,10 @@
 #include <Eigen/Geometry>
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <moveit/robot_state/robot_state.h>
-#include <ompl/base/spaces/RealVectorStateSpace.h>
-#include <boost/thread/mutex.hpp>
 
 #include "yaml-cpp/yaml.h"
 
 #include "frankpiv/exceptions.hpp"
-
-namespace ob = ompl::base;
 
 using namespace frankpiv::exceptions;
 
@@ -40,10 +35,6 @@ namespace frankpiv::util {
     Eigen::Affine3d toAffine(const std::array<double, 6> &array);
 
     std::array<double, 6> toArray(const Eigen::Affine3d &affine);
-
-    moveit::core::RobotState toMoveitState(const ob::RealVectorStateSpace::StateType &ompl_state, const robot_model::RobotModelConstPtr &robot_model, const std::string &group_name);
-
-    void toOMPLState(ob::RealVectorStateSpace::StateType *ompl_state, const moveit::core::RobotState &moveit_state, const moveit::core::JointModelGroup *joint_model_group);
 
     // other
     template<typename T>

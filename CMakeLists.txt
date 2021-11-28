@@ -22,9 +22,6 @@ add_subdirectory(dependencies)
 
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package(Boost REQUIRED COMPONENTS thread)
-find_package(ompl REQUIRED) # required for the moveit_planner
-
-
 # CATKIN
 set(CATKIN_ENABLE_TESTING OFF)
 find_package(
@@ -77,11 +74,9 @@ add_library(
         src/frankpiv/native/general_backend.cpp
         src/frankpiv/native/moveit_backend.cpp
         ${BACKEND_SOURCES}
-        src/frankpiv/native/moveit_planner/state_sampler.cpp
-        src/frankpiv/native/moveit_planner/validity_checker.cpp
 )
-target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS} ${OMPL_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS} ${OMPL_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS})
 
 # EXAMPLE
 add_executable(example examples/example.cpp)

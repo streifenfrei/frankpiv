@@ -88,17 +88,4 @@ namespace frankpiv::util {
         matrix << affine.translation(), getRotationEuler(affine);
         return {matrix(0), matrix(1), matrix(2), matrix(3), matrix(4), matrix(5)};
     }
-
-    moveit::core::RobotState toMoveitState(const ob::RealVectorStateSpace::StateType &ompl_state, const robot_model::RobotModelConstPtr &robot_model, const std::string &group_name) {
-        moveit::core::RobotState moveit_state{robot_model};
-        moveit_state.setJointGroupPositions(group_name, ompl_state.values);
-        moveit_state.update();
-        return moveit_state;
-    }
-
-    void toOMPLState(ob::RealVectorStateSpace::StateType *ompl_state, const moveit::core::RobotState &moveit_state, const moveit::core::JointModelGroup *joint_model_group) {
-        double *state_values = ompl_state->values;
-        moveit_state.copyJointGroupPositions(joint_model_group, state_values);
-    }
-
 }

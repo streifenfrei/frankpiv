@@ -59,7 +59,8 @@ namespace frankpiv {
             angle = frankpiv::util::clip(angle, -this->max_angle_, this->max_angle_);
             auto rotation_axis = (*point).cross(*z_axis);
             rotation_axis /= rotation_axis.norm();
-            pyrz = PivotFrame::internalPoseToPYRZ(AngleAxisd(angle, rotation_axis) * (Translation3d(0, 0, *z_translation) * Euler(0, 0, pyrz[2]).toRotationMatrix()));
+            auto pose = AngleAxisd(angle, rotation_axis) * (Translation3d(0, 0, *z_translation) * Euler(0, 0, pyrz[2]).toRotationMatrix());
+            pyrz = PivotFrame::internalPoseToPYRZ(pose);
             clipped = true;
         }
         delete point, z_axis, z_translation;
@@ -98,7 +99,7 @@ namespace frankpiv {
         return frame ? (*frame).inverse() * target_pose : target_pose;
     }
 
-    Vector4d PivotFrame::internalPoseToPYRZ(Affine3d pose) {
+    Vector4d PivotFrame::internalPoseToPYRZ(Affine3d &pose) {
         auto point = pose.translation();
         double z_translation = point(2) >= 0 ? point.norm() : -point.norm();
         auto in_origin = pose * Translation3d(0, 0, -z_translation);

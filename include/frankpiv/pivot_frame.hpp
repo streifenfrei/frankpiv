@@ -62,7 +62,7 @@ namespace frankpiv {
 
         Eigen::Affine3d localToOtherFrame(const Eigen::Affine3d &pose, const Eigen::Affine3d *frame = nullptr) const;
 
-        static Eigen::Vector4d internalPoseToPYRZ(Eigen::Affine3d pose);
+        static Eigen::Vector4d internalPoseToPYRZ(Eigen::Affine3d &pose);
 
         static Eigen::Vector4d getPYRZInternal(const Eigen::Vector3d &point, double roll);
 

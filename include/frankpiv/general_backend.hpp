@@ -48,6 +48,7 @@ namespace frankpiv::backend {
 
     protected:
         std::shared_ptr <frankpiv::PivotFrame> pivot_frame;
+        const std::string urdf_param;
 
         [[nodiscard]] const ros::NodeHandle &node_handle() const { return node_handle_; }
 

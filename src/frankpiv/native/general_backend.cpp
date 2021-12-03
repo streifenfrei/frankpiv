@@ -26,7 +26,8 @@ namespace frankpiv::backend {
                                                                rad(getConfigValue<double>(config, "max_angle")[0]),
                                                                Vector2d(rad(getConfigValue<double>(config, "roll_boundaries")[0]), rad(getConfigValue<double>(config, "roll_boundaries")[1])),
                                                                Vector2d(-this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(0), -this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(1)),
-                                                               getConfigValue<double>(config, "pivot_error_tolerance")[0]))
+                                                               getConfigValue<double>(config, "pivot_error_tolerance")[0])),
+            urdf_param(getConfigValue<std::string>(config, "urdf_parameter")[0])
 #ifdef VISUALIZATION
     ,visualize_(getConfigValue<bool>(config, "visualize")[0])
 #endif

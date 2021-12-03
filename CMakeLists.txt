@@ -26,12 +26,13 @@ find_package(Boost REQUIRED COMPONENTS thread)
 set(CATKIN_ENABLE_TESTING OFF)
 find_package(
         catkin REQUIRED COMPONENTS
-        roscpp
-        std_msgs
-        geometry_msgs
-        moveit_core
-        moveit_ros_planning
-        moveit_ros_planning_interface
+            roscpp
+            std_msgs
+            geometry_msgs
+            eigen_conversions
+            trac_ik_lib
+            moveit_core
+            moveit_ros_planning_interface
 )
 find_package(rviz_visual_tools)
 if (rviz_visual_tools_FOUND)
@@ -47,17 +48,18 @@ endif ()
 
 catkin_package(
         INCLUDE_DIRS
-        include
+            include
         CATKIN_DEPENDS
-        roscpp
-        std_msgs
-        geometry_msgs
-        moveit_core
-        moveit_ros_planning
-        moveit_ros_planning_interface
+            roscpp
+            std_msgs
+            geometry_msgs
+            eigen_conversions
+            trac_ik_lib
+            moveit_core
+            moveit_ros_planning_interface
         DEPENDS
-        EIGEN3
-        Boost
+            EIGEN3
+            Boost
 )
 
 
@@ -73,6 +75,7 @@ add_library(
         src/frankpiv/native/pivot_frame.cpp
         src/frankpiv/native/general_backend.cpp
         src/frankpiv/native/moveit_backend.cpp
+        src/frankpiv/native/pivot_planner.cpp
         ${BACKEND_SOURCES}
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})

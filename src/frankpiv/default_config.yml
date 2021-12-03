@@ -1,10 +1,12 @@
-eef_ppoint_distance: 0.3  # distance from end effector to pivot point
-tool_length: 0.5
-max_angle: 30  # maximum angle of the 'pitch/yaw' cone
-roll_boundaries: [-360, 360]
-z_translation_boundaries: [-0.2, 0.3]
+urdf_parameter: "/robot_description"  # name of the robot URDF description parameter on the ROS parameter server
+eef_ppoint_distance: 0.54  # distance from end effector to pivot point
+tool_length: 0.54
+max_angle: 20  # maximum angle of the 'pitch/yaw' cone
+pivot_error_tolerance: 0.0001
+roll_boundaries: [ -180, 180 ]
+z_translation_boundaries: [ 0., 0.03 ]
 clip_to_boundaries: true  # if true, clip outsider points to valid boundaries (throw exceptions otherwise)
-move_directly: false  # if true, move to target point on the shortest path. Otherwise do pitch/yaw and z-translation/roll successively (order depends on the relative z-translation)
+move_directly: true  # if true, move to target point on the shortest path. Otherwise do pitch/yaw and z-translation/roll successively (order depends on the relative z-translation)
 visualize: true  # if true, publish Marker messages
 marker_topic: "/rviz_visual_tools"
 
@@ -14,3 +16,6 @@ backend: "moveit"
 #frankx:
 #  fci_ip: "192.168.2.155"
 #  dynamic_rel: 0.2
+moveit:
+  ik_timeout: 5e-2
+  planner_threads: 4

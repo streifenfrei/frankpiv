@@ -46,7 +46,6 @@ namespace frankpiv::backend {
     }
 
     GeneralBackend::~GeneralBackend() {
-        this->stop();
         this->spinner_.stop();
         this->node_handle_.shutdown();
     }

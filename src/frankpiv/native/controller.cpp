@@ -1,3 +1,12 @@
+#ifndef NDEBUG
+#define SET_ROS_LOG_LEVEL \
+if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug) ) { \
+ros::console::notifyLoggerLevelsChanged();}
+#else
+#define SET_ROS_LOG_LEVEL \
+if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info) ) { \
+ros::console::notifyLoggerLevelsChanged();}
+#endif
 #include "yaml-cpp/yaml.h"
 
 #include "frankpiv/controller.hpp"
@@ -6,9 +15,15 @@
 
 #ifdef FRANKR
 #include "frankpiv/frankr_backend.hpp"
+#define LOAD_FRANKR else if (backend_name == "frankr") { this->backend = std::make_unique<backend::FrankrBackend>(config); }
+#else
+#define LOAD_FRANKR
 #endif
 #ifdef FRANKX
 #include "frankpiv/frankx_backend.hpp"
+#define LOAD_FRANKX else if (backend_name == "frankx") { this->backend = std::make_unique<backend::FrankxBackend>(config); }
+#else
+#define LOAD_FRANKX
 #endif
 
 
@@ -17,6 +32,7 @@ using namespace frankpiv::exceptions;
 
 namespace frankpiv {
     Controller::Controller(const std::string &config_file) {
+        SET_ROS_LOG_LEVEL
         YAML::Node config;
         try {
             config = YAML::LoadFile(config_file);
@@ -41,16 +57,8 @@ namespace frankpiv {
             if (backend_name == "moveit") {
                 this->backend = std::make_unique<backend::MoveitBackend>(config);
             }
-#ifdef FRANKR
-                else if (backend_name == "frankr") {
-                    this->backend = std::make_unique<backend::FrankrBackend>(config);
-                }
-#endif
-#ifdef FRANKX
-                else if (backend_name == "frankx") {
-                    this->backend = std::make_unique<backend::FrankxBackend>(config);
-                }
-#endif
+            LOAD_FRANKR
+            LOAD_FRANKX
             else {
                 throw ConfigError("No such backend: " + backend_name);
             }

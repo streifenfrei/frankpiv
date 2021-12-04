@@ -1,3 +1,10 @@
+#define COMMA ,
+#ifdef VISUALIZATION
+#define VISUALIZE(x) x
+#else
+#define VISUALIZE(x)
+#endif
+
 #include <unsupported/Eigen/EulerAngles>
 #include <ros/ros.h>
 
@@ -28,18 +35,14 @@ namespace frankpiv::backend {
                                                                Vector2d(-this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(0), -this->initial_eef_ppoint_distance_ + this->z_translation_boundaries_(1)),
                                                                getConfigValue<double>(config, "pivot_error_tolerance")[0])),
             urdf_param(getConfigValue<std::string>(config, "urdf_parameter")[0])
-#ifdef VISUALIZATION
-    ,visualize_(getConfigValue<bool>(config, "visualize")[0])
-#endif
+    VISUALIZE(COMMA visualize_(getConfigValue<bool>(config, "visualize")[0]))
     {
         this->spinner_.start();
 
-#ifdef VISUALIZATION
-        std::string topic = getConfigValue<std::string>(config, "marker_topic")[0];
-        this->visual_tools_world.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle_));
-        this->visual_tools_eef.reset(new rviz_visual_tools::RvizVisualTools("panda_link8", topic, this->node_handle_));
-        this->visual_tools_eef->enableFrameLocking();
-#endif
+    VISUALIZE(std::string topic = getConfigValue<std::string>(config, "marker_topic")[0];
+              this->visual_tools_world.reset(new rviz_visual_tools::RvizVisualTools("world", topic, this->node_handle_));
+              this->visual_tools_eef.reset(new rviz_visual_tools::RvizVisualTools("panda_link8", topic, this->node_handle_));
+              this->visual_tools_eef->enableFrameLocking();)
     }
 
     GeneralBackend::~GeneralBackend() {
@@ -55,20 +58,14 @@ namespace frankpiv::backend {
         } else {
             this->reference_frame(this->currentPose() * Translation3d(0, 0, this->initial_eef_ppoint_distance_));
         }
-#ifdef VISUALIZATION
-        if (this->visualize_) {
-            this->resetMarkers();
-        }
-#endif
+        VISUALIZE(if (this->visualize_) {
+                  this->resetMarkers();})
     }
 
     void GeneralBackend::stop() {
-#ifdef VISUALIZATION
-        if (this->visualize_) {
-            this->visual_tools_world->deleteAllMarkers();
-            this->visual_tools_eef->deleteAllMarkers();
-        }
-#endif
+        VISUALIZE( if (this->visualize_) {
+                  this->visual_tools_world->deleteAllMarkers();
+                  this->visual_tools_eef->deleteAllMarkers();})
         this->finish();
     }
 
@@ -100,14 +97,11 @@ namespace frankpiv::backend {
             throw UnattainablePoseException("PY angle is outside of specified boundaries", &angle_boundaries, &angle);
         }
         // move the robot
-#ifdef VISUALIZATION
-        if (this->visualize_) {
-            auto target_pose = this->pivot_frame->getPose(pyrz);
-            this->visual_tools_world->publishAxis(toPoseMsg(target_pose));
-            this->visual_tools_world->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)), rviz_visual_tools::BLACK);
-            this->visual_tools_world->trigger();
-        }
-#endif
+        VISUALIZE(if (this->visualize_) {
+                  auto target_pose = this->pivot_frame->getPose(pyrz);
+                  this->visual_tools_world->publishAxis(toPoseMsg(target_pose));
+                  this->visual_tools_world->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)), rviz_visual_tools::BLACK);
+                  this->visual_tools_world->trigger();})
         if (!this->move_directly_) {
             auto current_pyrz = this->getCurrentPYRZ();
             double current_eef_ppoint_distance = this->initial_eef_ppoint_distance_ - current_pyrz(3);
@@ -117,20 +111,14 @@ namespace frankpiv::backend {
                                      Vector4d(current_pyrz(0), current_pyrz(1), pyrz(2), pyrz(3)) :
                                      Vector4d(pyrz(0), pyrz(1), current_pyrz(2), -current_eef_ppoint_distance);
             if (!this->moveRobotPYRZ(std::move(intermediate_pyrz))) {
-#ifdef VISUALIZATION
-                if (this->visualize_) {
-                    this->resetMarkers();
-                }
-#endif
+                VISUALIZE(if (this->visualize_) {
+                          this->resetMarkers();})
                 return false;
             }
         }
         bool status = this->moveRobotPYRZ(std::move(pyrz));
-#ifdef VISUALIZATION
-        if (this->visualize_) {
-            this->resetMarkers();
-        }
-#endif
+        VISUALIZE(if (this->visualize_) {
+                  this->resetMarkers();})
         return status;
     }
 
@@ -139,16 +127,14 @@ namespace frankpiv::backend {
         return this->movePYRZ(std::move(absolute_pyrz), degrees);
     }
 
-#ifdef VISUALIZATION
-    void GeneralBackend::resetMarkers() {
+VISUALIZE(void GeneralBackend::resetMarkers() {
         this->visual_tools_world->deleteAllMarkers();
         this->visual_tools_eef->deleteAllMarkers();
         this->visual_tools_world->publishAxis(toPoseMsg(this->pivot_frame->reference_frame()));
         this->visual_tools_eef->publishLine(Vector3d(), Vector3d(0, 0, this->tool_length_), rviz_visual_tools::BLACK);
         // I dont quite understand the trigger behaviour, but in this order the calls dont "cancel" each other at least
         this->visual_tools_eef->trigger();
-        this->visual_tools_world->trigger();
-    }
+        this->visual_tools_world->trigger();}
 
     void GeneralBackend::visualize(bool visualize) {
         if (this->visualize_ != visualize) {
@@ -159,11 +145,7 @@ namespace frankpiv::backend {
                 this->visual_tools_world->deleteAllMarkers();
                 this->visual_tools_eef->deleteAllMarkers();
                 this->visual_tools_world->trigger();
-                this->visual_tools_eef->trigger();
-            }
-        }
-    }
-#endif
+                this->visual_tools_eef->trigger();}}})
 
     void GeneralBackend::fixCurrentPose() {
         bool critical_pivot_error = false;
@@ -225,11 +207,8 @@ namespace frankpiv::backend {
         this->clip_to_boundaries_ = true;
         this->fixCurrentPose();
         this->clip_to_boundaries_ = clip_to_boundaries;
-#ifdef VISUALIZATION
-        if (this->visualize_) {
-            this->resetMarkers();
-        }
-#endif
+        VISUALIZE(if (this->visualize_) {
+            this->resetMarkers();})
     }
 
     Vector4d GeneralBackend::getCurrentPYRZ() {

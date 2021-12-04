@@ -17,5 +17,8 @@ backend: "moveit"
 #  fci_ip: "192.168.2.155"
 #  dynamic_rel: 0.2
 moveit:
+  total_timeout: 2
   ik_timeout: 5e-2
   planner_threads: 4
+  planner_max_joint_distance: 0.6
+  planner_pyrz_step_size: 0.01

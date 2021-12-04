@@ -13,12 +13,17 @@ namespace frankpiv::backend {
     MoveitBackend::MoveitBackend(const YAML::Node &config, const std::string &node_name, bool async_motion) :
             GeneralBackend(config, node_name),
             max_threads(getConfigValue<unsigned int>(config["moveit"], "planner_threads")[0]),
-            ik_timeout(getConfigValue<double>(config["moveit"], "ik_timeout")[0]) {}
+            total_timeout(getConfigValue<double>(config["moveit"], "total_timeout")[0]),
+            ik_timeout(getConfigValue<double>(config["moveit"], "ik_timeout")[0]),
+            planner_max_joint_distance(getConfigValue<double>(config["moveit"], "planner_max_joint_distance")[0]),
+            planner_pyrz_step_size(getConfigValue<double>(config["moveit"], "planner_pyrz_step_size")[0]) {}
 
     void MoveitBackend::initialize() {
         this->robot = std::make_shared<moveit::planning_interface::MoveGroupInterface>(MoveitBackend::MOVE_GROUP_NAME);
         // couldn't find a way to get the base link from moveit objects... if that's not possible TODO make it a parameter
         this->planner = std::make_shared <frankpiv::pivot_planner::PivotPlanner>(this->pivot_frame, "panda_link0", this->robot->getEndEffectorLink(), this->urdf_param, this->ik_timeout, this->max_threads);
+        this->planner->max_joint_state_distance(this->planner_max_joint_distance);
+        this->planner->max_pyrz_step_size(this->planner_pyrz_step_size);
     }
 
     void MoveitBackend::finish() {
@@ -35,8 +40,7 @@ namespace frankpiv::backend {
         frankpiv::pivot_planner::PivotPlanningRequest request;
         request.start_state = Map<VectorXd>(&this->robot->getCurrentJointValues()[0], this->planner->dof());
         request.goal_pyrz = std::move(pyrz);
-        // TODO make parameter
-        request.allowed_planning_time = 200.0;
+        request.allowed_planning_time = this->total_timeout;
         // solve
         frankpiv::pivot_planner::PivotPlanningResponse response = this->planner->solve(request);
         if (response.status != frankpiv::pivot_planner::Status::Success) {

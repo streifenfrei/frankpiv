@@ -1,6 +1,8 @@
 #ifndef PIVOT_PLANNER
 #define PIVOT_PLANNER
 
+#include <chrono>
+
 #include <Eigen/Geometry>
 #include <kdl/chainfksolver.hpp>
 #include <trac_ik/trac_ik.hpp>
@@ -18,7 +20,7 @@ namespace frankpiv::pivot_planner {
         double allowed_planning_time;
     };
 
-    enum Status { Success, IKFailed, SearchFailed };
+    enum Status { Success, Timeout, IKFailed, SearchFailed };
 
     class PivotPlanningResponse {
     public:
@@ -66,7 +68,7 @@ namespace frankpiv::pivot_planner {
 
     private:
         std::shared_ptr <frankpiv::PivotFrame> pivot_frame_;
-        double max_joint_state_distance_ = 0.15;
+        double max_joint_state_distance_ = 0.1;
         double max_pyrz_step_size_ = 0.01;
         unsigned int dof_;
         KDL::Chain chain;
@@ -82,6 +84,9 @@ namespace frankpiv::pivot_planner {
         static constexpr double ik_eps = 1e-5;
         static constexpr TRAC_IK::SolveType ik_solve_type = TRAC_IK::Distance;
         // solving related datastructures
+        const PivotPlanningRequest *request;
+        PivotPlanningResponse response;
+        std::chrono::time_point<std::chrono::system_clock> start_timestamp;
         bool abort;
         Eigen::Vector4d start_pyrz;
         Eigen::Vector4d pyrz_step_size;
@@ -89,7 +94,6 @@ namespace frankpiv::pivot_planner {
         unsigned int state_count;
         std::vector <std::vector <KDL::JntArray>> joint_states;
         std::vector <Eigen::MatrixXi> connections;
-        std::vector <Eigen::Vector2i> solution;
         bool solution_found;
         std::mutex solution_mutex;
 
@@ -102,11 +106,11 @@ namespace frankpiv::pivot_planner {
         // thread runnables
         void createSearchSpace(unsigned int thread_id);
 
-        void tsDoStepIfValid(unsigned int step, unsigned int state_index, unsigned int next_state_index, std::vector <Eigen::Vector2i> &current_path);
+        void tsDoStepIfValid(unsigned int step, unsigned int state_index, unsigned int next_state_index, std::vector <Eigen::Vector2i> &current_path, const unsigned int &thread_id);
 
-        void tsChooseNextStep(unsigned int step, unsigned int state_index, std::vector <Eigen::Vector2i> &current_path);
+        void tsChooseNextStep(unsigned int step, unsigned int state_index, std::vector <Eigen::Vector2i> &current_path, const unsigned int &thread_id);
 
-        void tsStart(unsigned int start_index);
+        void tsStart(unsigned int start_index, const unsigned int &thread_id);
 
         void createIKSolvers();
     };

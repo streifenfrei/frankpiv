@@ -12,8 +12,12 @@ namespace frankpiv::backend {
     private:
         moveit::planning_interface::MoveGroupInterfacePtr robot;
         std::shared_ptr <frankpiv::pivot_planner::PivotPlanner> planner;
+        double total_timeout;
         double ik_timeout;
         unsigned int max_threads;
+
+        double planner_max_joint_distance;
+        double planner_pyrz_step_size;
 
     protected:
         // TODO make parameter

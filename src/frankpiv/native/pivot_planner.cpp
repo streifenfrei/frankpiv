@@ -58,10 +58,18 @@ namespace frankpiv::pivot_planner {
             if (!getIKSolutions(pyrz_state, seed, this->joint_states[i], this->ik_solvers[thread_id].get())) {
                 this->abort = true;
             }
+            if (thread_id == 0) {
+                std::chrono::time_point<std::chrono::system_clock> current_timestamp = std::chrono::system_clock::now();
+                std::chrono::duration<double> duration = current_timestamp - this->start_timestamp;
+                if (duration.count() >= this->request->allowed_planning_time) {
+                    this->abort = true;
+                    this->response.status = Status::Timeout;
+                }
+            }
         }
     }
 
-    void PivotPlanner::tsDoStepIfValid(unsigned int step, unsigned int state_index, unsigned int next_state_index, std::vector <Vector2i> &current_path) {
+    void PivotPlanner::tsDoStepIfValid(unsigned int step, unsigned int state_index, unsigned int next_state_index, std::vector <Vector2i> &current_path, const unsigned int &thread_id) {
         if (next_state_index >= 0 && next_state_index < this->joint_states[step + 1].size()) {
             int &connection_status = this->connections[step](state_index, next_state_index);
             if (connection_status == -1) {
@@ -72,42 +80,55 @@ namespace frankpiv::pivot_planner {
                 if (step + 1 == this->joint_states.size() - 1) {
                     this->solution_found = true;
                     std::lock_guard <std::mutex> lock(this->solution_mutex);
-                    this->solution = current_path;
+                    this->response.status = Status::Success;
+                    for (auto &state : current_path) {
+                        this->response.trajectory.push_back(this->joint_states[state[0]][state[1]].data);
+                    }
                 } else {
-                    this->tsChooseNextStep(step + 1, next_state_index, current_path);
+                    this->tsChooseNextStep(step + 1, next_state_index, current_path, thread_id);
                 }
             }
         }
     };
 
-    void PivotPlanner::tsChooseNextStep(unsigned int step, unsigned int state_index, std::vector <Vector2i> &current_path) {
+    void PivotPlanner::tsChooseNextStep(unsigned int step, unsigned int state_index, std::vector <Vector2i> &current_path, const unsigned int &thread_id) {
         for (size_t i = 0; i < this->joint_states[step + 1].size(); i++) {
-            if (this->solution_found)
+            if (this->abort || this->solution_found)
                 return;
             unsigned int next_index = (state_index + i) % this->joint_states[step + 1].size();
-            this->tsDoStepIfValid(step, state_index, next_index, current_path);
+            this->tsDoStepIfValid(step, state_index, next_index, current_path, thread_id);
+            if (thread_id == 0) {
+                std::chrono::time_point<std::chrono::system_clock> current_timestamp = std::chrono::system_clock::now();
+                std::chrono::duration<double> duration = current_timestamp - this->start_timestamp;
+                if (duration.count() >= this->request->allowed_planning_time) {
+                    this->abort = true;
+                    this->response.status = Status::Timeout;
+                }
+            }
         }
         current_path.pop_back();
     };
 
-    void PivotPlanner::tsStart(unsigned int start_index) {
+    void PivotPlanner::tsStart(unsigned int start_index, const unsigned int &thread_id) {
         std::vector <Vector2i> path;
         for (size_t i = 0; i < this->joint_states[1].size(); i++) {
-            if (this->solution_found)
+            if (this->abort || this->solution_found)
                 return;
             unsigned int next_index = (start_index + i) % this->joint_states[1].size();
-            this->tsDoStepIfValid(0, 0, next_index, path);
+            this->tsDoStepIfValid(0, 0, next_index, path, thread_id);
         }
     }
 
     PivotPlanningResponse PivotPlanner::solve(const PivotPlanningRequest &request) {
-        PivotPlanningResponse response;
+        this->request = &request;
+        this->response = PivotPlanningResponse();
+        this->start_timestamp = std::chrono::system_clock::now();
         KDL::JntArray start_joint(this->dof_);
         for (size_t i = 0; i < this->dof_; i++) {
-            start_joint(i) = request.start_state[i];
+            start_joint(i) = this->request->start_state[i];
         }
         toPYRZ(start_joint, this->start_pyrz);
-        const Vector4d &goal_pyrz = request.goal_pyrz;
+        const Vector4d &goal_pyrz = this->request->goal_pyrz;
         Vector4d pyrz_distances = goal_pyrz - start_pyrz;
         this->state_count = pyrz_distances.squaredNorm() / this->max_pyrz_step_size_;
         this->pyrz_step_size = pyrz_distances / (this->state_count + 1);
@@ -137,23 +158,16 @@ namespace frankpiv::pivot_planner {
         for (size_t i = 0; i < this->state_count + 1; i++) {
             connections.push_back(MatrixXi::Constant(this->joint_states[i].size(), this->joint_states[i + 1].size(), -1));
         }
+        this->response.status = Status::SearchFailed;
         unsigned int start_index_step = this->joint_states[1].size() / this->max_threads_;
         threads.clear();
         for (size_t i = 0; i < this->max_threads_; i++) {
-            threads.emplace_back(&PivotPlanner::tsStart, this, i * start_index_step);
+            threads.emplace_back(&PivotPlanner::tsStart, this, i * start_index_step, i);
         }
         for (auto &t : threads) {
             t.join();
         }
-        if (solution_found) {
-            for (auto &state : solution) {
-                response.trajectory.push_back(this->joint_states[state[0]][state[1]].data);
-            }
-            response.status = Status::Success;
-        } else {
-            response.status = Status::SearchFailed;
-        }
-        return response;
+        return this->response;
     }
 
     void PivotPlanner::createIKSolvers() {

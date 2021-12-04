@@ -44,7 +44,7 @@ namespace frankpiv::backend {
         // solve
         frankpiv::pivot_planner::PivotPlanningResponse response = this->planner->solve(request);
         if (response.status != frankpiv::pivot_planner::Status::Success) {
-            ROS_ERROR_STREAM("Motion failed during planning");
+            ROS_ERROR_STREAM("Motion failed during planning (Status " << response.status << ")");
             return false;
         }
         // convert to moveit trajectory

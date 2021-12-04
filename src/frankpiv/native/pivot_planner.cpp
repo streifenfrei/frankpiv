@@ -59,8 +59,7 @@ namespace frankpiv::pivot_planner {
                 this->abort = true;
             }
             if (thread_id == 0) {
-                std::chrono::time_point<std::chrono::system_clock> current_timestamp = std::chrono::system_clock::now();
-                std::chrono::duration<double> duration = current_timestamp - this->start_timestamp;
+                std::chrono::duration<double> duration = std::chrono::system_clock::now() - this->start_timestamp;
                 if (duration.count() >= this->request->allowed_planning_time) {
                     this->abort = true;
                     this->response.status = Status::Timeout;
@@ -71,21 +70,21 @@ namespace frankpiv::pivot_planner {
 
     void PivotPlanner::tsDoStepIfValid(unsigned int step, unsigned int state_index, unsigned int next_state_index, std::vector <Vector2i> &current_path, const unsigned int &thread_id) {
         if (next_state_index >= 0 && next_state_index < this->joint_states[step + 1].size()) {
-            int &connection_status = this->connections[step](state_index, next_state_index);
-            if (connection_status == -1) {
-                this->connections[step](state_index, next_state_index) = (this->joint_states[step][state_index].data - this->joint_states[step + 1][next_state_index].data).norm() < this->max_joint_state_distance_ ? 1 : 0;
-            }
-            if (connection_status == 1) {
-                current_path.emplace_back(step, state_index);
-                if (step + 1 == this->joint_states.size() - 1) {
-                    this->solution_found = true;
-                    std::lock_guard <std::mutex> lock(this->solution_mutex);
-                    this->response.status = Status::Success;
-                    for (auto &state : current_path) {
-                        this->response.trajectory.push_back(this->joint_states[state[0]][state[1]].data);
+            bool &connection_explored = this->connections[step](state_index, next_state_index);
+            if (!connection_explored) {
+                connection_explored = true;
+                if ((this->joint_states[step][state_index].data - this->joint_states[step + 1][next_state_index].data).norm() < this->max_joint_state_distance_) {
+                    current_path.emplace_back(step, state_index);
+                    if (step + 1 == this->joint_states.size() - 1) {
+                        this->solution_found = true;
+                        std::lock_guard <std::mutex> lock(this->solution_mutex);
+                        this->response.status = Status::Success;
+                        for (auto &state : current_path) {
+                            this->response.trajectory.push_back(this->joint_states[state[0]][state[1]].data);
+                        }
+                    } else {
+                        this->tsChooseNextStep(step + 1, next_state_index, current_path, thread_id);
                     }
-                } else {
-                    this->tsChooseNextStep(step + 1, next_state_index, current_path, thread_id);
                 }
             }
         }
@@ -98,8 +97,7 @@ namespace frankpiv::pivot_planner {
             unsigned int next_index = (state_index + i) % this->joint_states[step + 1].size();
             this->tsDoStepIfValid(step, state_index, next_index, current_path, thread_id);
             if (thread_id == 0) {
-                std::chrono::time_point<std::chrono::system_clock> current_timestamp = std::chrono::system_clock::now();
-                std::chrono::duration<double> duration = current_timestamp - this->start_timestamp;
+                std::chrono::duration<double> duration = std::chrono::system_clock::now() - this->start_timestamp;
                 if (duration.count() >= this->request->allowed_planning_time) {
                     this->abort = true;
                     this->response.status = Status::Timeout;
@@ -120,6 +118,8 @@ namespace frankpiv::pivot_planner {
     }
 
     PivotPlanningResponse PivotPlanner::solve(const PivotPlanningRequest &request) {
+        TIME_ANALYSIS(this->ik_duration = std::chrono::duration<double>();
+                      this->ts_duration = std::chrono::duration<double>();)
         this->request = &request;
         this->response = PivotPlanningResponse();
         this->start_timestamp = std::chrono::system_clock::now();
@@ -134,21 +134,28 @@ namespace frankpiv::pivot_planner {
         this->pyrz_step_size = pyrz_distances / (this->state_count + 1);
         this->joint_states = std::vector < std::vector < KDL::JntArray >> (this->state_count + 2);
         this->joint_states[0].push_back(std::move(start_joint)); // start_joint becomes invalid here
+        TIME_ANALYSIS(std::chrono::time_point < std::chrono::system_clock > before = std::chrono::system_clock::now();)
         if (!this->getIKSolutions(goal_pyrz, this->joint_states[0][0], this->joint_states[this->state_count + 1], this->ik_solvers[0].get())) {
+            TIME_ANALYSIS(this->ik_duration += std::chrono::system_clock::now() - before;)
+            TIME_ANALYSIS_PRINT
             return response;
         }
+        TIME_ANALYSIS(this->ik_duration += std::chrono::system_clock::now() - before;)
         KDL::Subtract(this->joint_states[this->state_count + 1][0], this->joint_states[0][0], this->joint_step_size);
         KDL::Divide(this->joint_step_size, this->state_count + 1, this->joint_step_size);
         // create search space
         this->abort = false;
         std::vector <std::thread> threads;
+        TIME_ANALYSIS(before = std::chrono::system_clock::now();)
         for (size_t i = 0; i < this->max_threads_ik; i++) {
             threads.emplace_back(&PivotPlanner::createSearchSpace, this, i);
         }
         for (auto &t : threads) {
             t.join();
         }
+        TIME_ANALYSIS(this->ik_duration += std::chrono::system_clock::now() - before;)
         if (this->abort) {
+            TIME_ANALYSIS_PRINT
             return response;
         }
         // prepare tree search
@@ -156,17 +163,20 @@ namespace frankpiv::pivot_planner {
         this->solution_found = false;
         this->connections.clear();
         for (size_t i = 0; i < this->state_count + 1; i++) {
-            connections.push_back(MatrixXi::Constant(this->joint_states[i].size(), this->joint_states[i + 1].size(), -1));
+            connections.push_back(Matrix<bool, Dynamic, Dynamic>::Zero(this->joint_states[i].size(), this->joint_states[i + 1].size()));
         }
         this->response.status = Status::SearchFailed;
         unsigned int start_index_step = this->joint_states[1].size() / this->max_threads_;
         threads.clear();
+        TIME_ANALYSIS(before = std::chrono::system_clock::now();)
         for (size_t i = 0; i < this->max_threads_; i++) {
             threads.emplace_back(&PivotPlanner::tsStart, this, i * start_index_step, i);
         }
         for (auto &t : threads) {
             t.join();
         }
+        TIME_ANALYSIS(this->ts_duration = std::chrono::system_clock::now() - before;)
+        TIME_ANALYSIS_PRINT
         return this->response;
     }
 

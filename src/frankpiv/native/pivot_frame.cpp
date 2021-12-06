@@ -4,14 +4,14 @@
 #include "frankpiv/utilities.hpp"
 #include "frankpiv/exceptions.hpp"
 
-using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
-
 using namespace Eigen;
 using namespace frankpiv::util;
 using namespace frankpiv::exceptions;
 
+using Euler = EulerAngles<double, EulerSystemXYZ>;
+
 namespace frankpiv {
-    PivotFrame::PivotFrame(Affine3d reference_frame, double max_angle, Eigen::Vector2d roll_boundaries, Eigen::Vector2d z_translation_boundaries, double error_tolerance) :
+    PivotFrame::PivotFrame(Affine3d reference_frame, double max_angle, Vector2d roll_boundaries, Vector2d z_translation_boundaries, double error_tolerance) :
             reference_frame_(std::move(reference_frame)),
             max_angle_(max_angle),
             roll_boundaries_(std::move(roll_boundaries)),

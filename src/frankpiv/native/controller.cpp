@@ -117,12 +117,12 @@ namespace frankpiv {
         this->movePYRZ(pyrz_vector, degrees);
     }
 
-    Eigen::Vector4d Controller::getCurrentPYRZ() const {
+    Vector4d Controller::getCurrentPYRZ() const {
         return (*this->backend).getCurrentPYRZ();
     }
 
     std::array<double, 4> Controller::getCurrentPYRZAsArray() const {
-        Eigen::Vector4d pyrz = this->getCurrentPYRZ();
+        Vector4d pyrz = this->getCurrentPYRZ();
         return {pyrz[0], pyrz[1], pyrz[2], pyrz[3]};
     }
 }

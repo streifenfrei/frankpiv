@@ -6,7 +6,6 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 using namespace frankpiv;
-using namespace Eigen;
 
 PYBIND11_MODULE(frankpyv, module) {
     py::class_<Controller>(module, "Controller")

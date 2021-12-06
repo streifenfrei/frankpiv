@@ -12,11 +12,11 @@
 #include "frankpiv/utilities.hpp"
 #include "frankpiv/exceptions.hpp"
 
-using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
-
 using namespace Eigen;
 using namespace frankpiv::util;
 using namespace frankpiv::exceptions;
+
+using Euler = EulerAngles<double, EulerSystemXYZ>;
 
 namespace frankpiv::backend {
     // ====================================================================================================================================================

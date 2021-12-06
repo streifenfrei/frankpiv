@@ -3,9 +3,9 @@
 
 #include "frankpiv/utilities.hpp"
 
-using Euler = Eigen::EulerAngles<double, Eigen::EulerSystemXYZ>;
-
 using namespace Eigen;
+
+using Euler = EulerAngles<double, EulerSystemXYZ>;
 
 namespace frankpiv::util {
     Vector3d getRotationEuler(const Affine3d &affine) {
@@ -44,8 +44,8 @@ namespace frankpiv::util {
         return affine;
     }
 
-    std::array<double, 6> toArray(const Eigen::Affine3d &affine) {
-        Eigen::Matrix<double, 6, 1> matrix;
+    std::array<double, 6> toArray(const Affine3d &affine) {
+        Matrix<double, 6, 1> matrix;
         matrix << affine.translation(), getRotationEuler(affine);
         return {matrix(0), matrix(1), matrix(2), matrix(3), matrix(4), matrix(5)};
     }

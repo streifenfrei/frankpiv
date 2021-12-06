@@ -11,7 +11,6 @@ ROS_DEBUG_STREAM("Planning time (" << this->joint_states.size() << "states): Tot
 #define TIME_ANALYSIS_PRINT
 #endif
 
-
 #include <chrono>
 
 #include <Eigen/Geometry>

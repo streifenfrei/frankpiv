@@ -4,11 +4,8 @@
 #include <eigen_conversions/eigen_kdl.h>
 
 #include "frankpiv/pivot_planner.hpp"
-#include "frankpiv/utilities.hpp"
 
 using namespace Eigen;
-using namespace frankpiv::util;
-
 
 namespace frankpiv::pivot_planner {
     PivotPlanner::PivotPlanner(std::shared_ptr <frankpiv::PivotFrame> pivot_frame, const std::string &base_link, const std::string &tip_link, const std::string &urdf_param, double ik_timeout, unsigned int threads) :

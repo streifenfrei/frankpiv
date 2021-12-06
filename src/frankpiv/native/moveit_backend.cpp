@@ -1,7 +1,5 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
-#include <moveit/robot_state/robot_state.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include "frankpiv/moveit_backend.hpp"
 #include "frankpiv/utilities.hpp"

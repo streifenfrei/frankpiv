@@ -7,7 +7,6 @@
 
 #include <eigen_conversions/eigen_msg.h>
 #include <unsupported/Eigen/EulerAngles>
-#include <ros/ros.h>
 
 #include "frankpiv/general_backend.hpp"
 #include "frankpiv/utilities.hpp"

@@ -5,9 +5,7 @@
 #include <ros/ros.h>
 
 #ifdef VISUALIZATION
-
 #include <rviz_visual_tools/rviz_visual_tools.h>
-
 #endif
 
 #include "yaml-cpp/yaml.h"

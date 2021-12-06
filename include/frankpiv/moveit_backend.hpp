@@ -2,7 +2,6 @@
 #define FRANKPIV_MOVEIT_BACKEND
 
 #include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 
 #include "frankpiv/general_backend.hpp"
 #include "frankpiv/pivot_planner.hpp"

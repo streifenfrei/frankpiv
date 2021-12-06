@@ -2,8 +2,6 @@
 #define FRANKPIV_UTILITIES
 
 #include <Eigen/Geometry>
-#include <geometry_msgs/Point.h>
-#include <geometry_msgs/PoseStamped.h>
 
 #include "yaml-cpp/yaml.h"
 

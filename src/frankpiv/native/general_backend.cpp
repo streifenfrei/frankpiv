@@ -87,9 +87,8 @@ namespace frankpiv::backend {
             Vector2d roll_boundaries = this->pivot_frame->roll_boundaries();
             throw UnattainablePoseException("Roll value is outside of specified boundaries", &roll_boundaries, &unclipped_pyrz(2));
         }
-        if (this->pivot_frame->clipZTranslation(pyrz) && !this->clip_to_boundaries_) {
+        if (this->pivot_frame->clipZTranslation(pyrz) && !this->clip_to_boundaries_)
             throw UnattainablePoseException("Z-translation value is outside of specified boundaries", &this->z_translation_boundaries_, &unclipped_pyrz(3));
-        }
         if (this->pivot_frame->clipAngle(pyrz) && !this->clip_to_boundaries_) {
             double angle = this->pivot_frame->getAngle(pyrz);
             Vector2d angle_boundaries = Vector2d(-this->pivot_frame->max_angle(), this->pivot_frame->max_angle());
@@ -158,12 +157,10 @@ VISUALIZE(void GeneralBackend::resetMarkers() {
         }
         pyrz(3) -= this->initial_eef_ppoint_distance_;
         if (critical_pivot_error | this->pivot_frame->clip(pyrz)) {
-            if (!this->clip_to_boundaries_) {
+            if (!this->clip_to_boundaries_)
                 throw UnattainablePoseException("Current pose is out of boundaries");
-            }
-            if (!this->moveRobotPYRZ(pyrz)) {
+            if (!this->moveRobotPYRZ(pyrz))
                 throw UnattainablePoseException("Failed to fix current pose");
-            }
         }
     }
 

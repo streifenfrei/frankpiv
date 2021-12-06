@@ -25,9 +25,8 @@ namespace frankpiv::pivot_planner {
 
     bool PivotPlanner::toPYRZ(const KDL::JntArray &joint_array, Vector4d &pyrz) {
         KDL::Frame pose_kdl;
-        if (this->fk_solver->JntToCart(joint_array, pose_kdl) < 0) {
+        if (this->fk_solver->JntToCart(joint_array, pose_kdl) < 0)
             return false;
-        }
         Affine3d pose_eigen;
         tf::transformKDLToEigen(pose_kdl, pose_eigen);
         pyrz = this->pivot_frame_->getPYRZ(pose_eigen);
@@ -40,24 +39,21 @@ namespace frankpiv::pivot_planner {
         KDL::Frame pose;
         tf::transformEigenToKDL(this->pivot_frame_->getPose(pyrz), pose);
         KDL::JntArray dummy_out;
-        if (ik_solver->CartToJnt(seed, pose, dummy_out) < 0) {
+        if (ik_solver->CartToJnt(seed, pose, dummy_out) < 0)
             return false;
-        }
         return ik_solver->getSolutions(solutions);
     }
 
     void PivotPlanner::createSearchSpace(unsigned int thread_id) {
         for (size_t i = thread_id + 1; i <= this->state_count; i += this->max_threads_ik) {
-            if (this->abort) {
+            if (this->abort)
                 return;
-            }
             Vector4d pyrz_state = this->start_pyrz + this->pyrz_step_size * i;
             KDL::JntArray seed;
             KDL::Multiply(joint_step_size, i, seed);
             KDL::Add(this->joint_states[0][0], seed, seed);
-            if (!getIKSolutions(pyrz_state, seed, this->joint_states[i], this->ik_solvers[thread_id].get())) {
+            if (!getIKSolutions(pyrz_state, seed, this->joint_states[i], this->ik_solvers[thread_id].get()))
                 this->abort = true;
-            }
             if (thread_id == 0) {
                 std::chrono::duration<double> duration = std::chrono::system_clock::now() - this->start_timestamp;
                 if (duration.count() >= this->request->allowed_planning_time) {

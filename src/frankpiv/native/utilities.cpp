@@ -12,15 +12,12 @@ namespace frankpiv::util {
         auto angles = EulerAngles<double, EulerSystemXYZ>::FromRotation<false, false, false>(affine.rotation()).angles();
         if (angles[0] > M_PI_2 || angles[0] < -M_PI_2) {
             angles << angles[0] - M_PI, M_PI - angles[1], angles[2] - M_PI;
-            if (angles[0] < -M_PI) {
+            if (angles[0] < -M_PI)
                 angles[0] += 2 * M_PI;
-            }
-            if (angles[1] > M_PI) {
+            if (angles[1] > M_PI)
                 angles[1] -= 2 * M_PI;
-            }
-            if (angles[2] > M_PI) {
+            if (angles[2] > M_PI)
                 angles[2] += 2 * M_PI;
-            }
         }
         return angles;
     }

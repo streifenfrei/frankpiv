@@ -26,9 +26,8 @@ namespace frankpiv {
     Vector4d PivotFrame::getPYRZ(const Affine3d &pose, const Affine3d *frame) const {
         auto local_pose = this->otherToLocalFrame(pose, frame);
         double error = PivotFrame::getErrorInternal(local_pose);
-        if (error > this->error_tolerance_) {
+        if (error > this->error_tolerance_)
             throw CriticalPivotErrorException(error, this->error_tolerance_);
-        }
         return PivotFrame::internalPoseToPYRZ(local_pose);
     }
 
@@ -152,21 +151,17 @@ namespace frankpiv {
             z_translation_ = 1;
             point_ = (pose_ * Translation3d(0, 0, 1)).translation();
         }
-        if (point) {
+        if (point)
             *point = point_;
-        }
-        if (z_axis) {
+        if (z_axis)
             *z_axis = z_axis_;
-        }
-        if (z_translation) {
+        if (z_translation)
             *z_translation = z_translation_;
-        }
         double angle = -acos(point_.dot(z_axis_) / z_translation_);
         if (angle > M_PI / 2) {
             angle = M_PI - angle;
-        } else if (angle < -M_PI / 2) {
+        } else if (angle < -M_PI / 2)
             angle = -M_PI - angle;
-        }
         return angle;
     }
 

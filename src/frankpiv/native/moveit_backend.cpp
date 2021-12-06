@@ -1,3 +1,4 @@
+#include <eigen_conversions/eigen_msg.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 #include <moveit/robot_state/robot_state.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -31,11 +32,13 @@ namespace frankpiv::backend {
         this->robot.reset();
     }
 
-    Eigen::Affine3d MoveitBackend::currentPose() {
-        return toAffine(this->robot->getCurrentPose());
+    Affine3d MoveitBackend::currentPose() {
+        Affine3d pose;
+        tf::poseMsgToEigen(this->robot->getCurrentPose().pose, pose);
+        return pose;
     }
 
-    bool MoveitBackend::moveRobotPYRZ(Eigen::Vector4d pyrz) {
+    bool MoveitBackend::moveRobotPYRZ(Vector4d pyrz) {
         // prepare request
         frankpiv::pivot_planner::PivotPlanningRequest request;
         request.start_state = Map<VectorXd>(&this->robot->getCurrentJointValues()[0], this->planner->dof());

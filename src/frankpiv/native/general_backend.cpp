@@ -5,6 +5,7 @@
 #define VISUALIZE(x)
 #endif
 
+#include <eigen_conversions/eigen_msg.h>
 #include <unsupported/Eigen/EulerAngles>
 #include <ros/ros.h>
 
@@ -97,8 +98,11 @@ namespace frankpiv::backend {
         // move the robot
         VISUALIZE(if (this->visualize_) {
                   auto target_pose = this->pivot_frame->getPose(pyrz);
-                  this->visual_tools_world->publishAxis(toPoseMsg(target_pose));
-                  this->visual_tools_world->publishSphere(toPoseMsg(target_pose * Translation3d(0, 0, this->tool_length_)), rviz_visual_tools::BLACK);
+                  geometry_msgs::Pose pose_msg;
+                  tf::poseEigenToMsg(target_pose, pose_msg);
+                  this->visual_tools_world->publishAxis(pose_msg);
+                  tf::poseEigenToMsg(target_pose * Translation3d(0, 0, this->tool_length_), pose_msg);
+                  this->visual_tools_world->publishSphere(pose_msg, rviz_visual_tools::BLACK);
                   this->visual_tools_world->trigger();})
         if (!this->move_directly_) {
             auto current_pyrz = this->getCurrentPYRZ();
@@ -128,7 +132,9 @@ namespace frankpiv::backend {
 VISUALIZE(void GeneralBackend::resetMarkers() {
         this->visual_tools_world->deleteAllMarkers();
         this->visual_tools_eef->deleteAllMarkers();
-        this->visual_tools_world->publishAxis(toPoseMsg(this->pivot_frame->reference_frame()));
+        geometry_msgs::Pose pose_msg;
+        tf::poseEigenToMsg(this->pivot_frame->reference_frame(), pose_msg);
+        this->visual_tools_world->publishAxis(pose_msg);
         this->visual_tools_eef->publishLine(Vector3d(), Vector3d(0, 0, this->tool_length_), rviz_visual_tools::BLACK);
         // I dont quite understand the trigger behaviour, but in this order the calls dont "cancel" each other at least
         this->visual_tools_eef->trigger();

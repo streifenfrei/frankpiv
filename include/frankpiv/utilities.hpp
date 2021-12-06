@@ -24,14 +24,6 @@ namespace frankpiv::util {
     double clip(double n, const Eigen::Vector2d &boundaries);
 
     // conversion
-    geometry_msgs::Point toPointMsg(const Eigen::Affine3d &affine);
-
-    geometry_msgs::Quaternion toQuatMsg(const Eigen::Matrix3d &rotation);
-
-    geometry_msgs::Pose toPoseMsg(const Eigen::Affine3d &affine);
-
-    Eigen::Affine3d toAffine(const geometry_msgs::PoseStamped &msg);
-
     Eigen::Affine3d toAffine(const std::array<double, 6> &array);
 
     std::array<double, 6> toArray(const Eigen::Affine3d &affine);

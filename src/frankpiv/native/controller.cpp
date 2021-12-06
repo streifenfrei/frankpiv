@@ -1,12 +1,9 @@
 #ifndef NDEBUG
-#define SET_ROS_LOG_LEVEL \
-if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug) ) { \
-ros::console::notifyLoggerLevelsChanged();}
+#define ROS_LOG_LEVEL Debug
 #else
-#define SET_ROS_LOG_LEVEL \
-if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info) ) { \
-ros::console::notifyLoggerLevelsChanged();}
+#define ROS_LOG_LEVEL Info
 #endif
+
 #include "yaml-cpp/yaml.h"
 
 #include "frankpiv/controller.hpp"
@@ -32,7 +29,8 @@ using namespace frankpiv::exceptions;
 
 namespace frankpiv {
     Controller::Controller(const std::string &config_file) {
-        SET_ROS_LOG_LEVEL
+        if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::ROS_LOG_LEVEL))
+            ros::console::notifyLoggerLevelsChanged();
         YAML::Node config;
         try {
             config = YAML::LoadFile(config_file);
@@ -56,9 +54,8 @@ namespace frankpiv {
             std::string backend_name = getConfigValue<std::string>(config, "backend")[0];
             if (backend_name == "moveit") {
                 this->backend = std::make_unique<backend::MoveitBackend>(config);
-            }
-            LOAD_FRANKR
-            LOAD_FRANKX
+            }LOAD_FRANKR
+                    LOAD_FRANKX
             else {
                 throw ConfigError("No such backend: " + backend_name);
             }

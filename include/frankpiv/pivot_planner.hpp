@@ -4,7 +4,7 @@
 #define TIME_ANALYSIS(x) x
 #define TIME_ANALYSIS_PRINT \
 std::chrono::duration<double> total_time = std::chrono::system_clock::now() - this->start_timestamp; \
-ROS_DEBUG_STREAM("Planning time: Total = " << total_time.count() << " s | IK = " << this->ik_duration.count() << " s (" << (int) (100 * this->ik_duration.count() / total_time.count()) << "%) | TS = " << this->ts_duration.count() << " s (" << (int) (100 * this->ts_duration.count() / total_time.count()) << "%)");
+ROS_DEBUG_STREAM("Planning time (" << this->joint_states.size() << "states): Total = " << total_time.count() << " s | IK = " << this->ik_duration.count() << " s (" << (int) (100 * this->ik_duration.count() / total_time.count()) << "%) | TS = " << this->ts_duration.count() << " s (" << (int) (100 * this->ts_duration.count() / total_time.count()) << "%)");
 #include <ros/console.h>
 #else
 #define TIME_ANALYSIS(x)

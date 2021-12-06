@@ -129,8 +129,8 @@ namespace frankpiv::pivot_planner {
         }
         toPYRZ(start_joint, this->start_pyrz);
         const Vector4d &goal_pyrz = this->request->goal_pyrz;
-        Vector4d pyrz_distances = goal_pyrz - start_pyrz;
-        this->state_count = pyrz_distances.squaredNorm() / this->max_pyrz_step_size_;
+        Vector4d pyrz_distances = goal_pyrz - this->start_pyrz;
+        this->state_count = pyrz_distances.norm() / this->max_pyrz_step_size_;
         this->pyrz_step_size = pyrz_distances / (this->state_count + 1);
         this->joint_states = std::vector < std::vector < KDL::JntArray >> (this->state_count + 2);
         this->joint_states[0].push_back(std::move(start_joint)); // start_joint becomes invalid here

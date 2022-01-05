@@ -1,5 +1,3 @@
-add_subdirectory(yaml-cpp)
-
 set(BUILD_TESTS OFF)
 set(BUILD_PYTHON_MODULE OFF)
 set(BUILD_EXAMPLES OFF)

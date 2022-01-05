@@ -22,6 +22,8 @@ add_subdirectory(dependencies)
 
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 find_package(Boost REQUIRED COMPONENTS thread)
+find_package(yaml-cpp REQUIRED)
+
 # CATKIN
 set(CATKIN_ENABLE_TESTING OFF)
 find_package(
@@ -60,6 +62,7 @@ catkin_package(
         DEPENDS
             EIGEN3
             Boost
+            YAML_CPP
 )
 
 
@@ -79,7 +82,7 @@ add_library(
         ${BACKEND_SOURCES}
 )
 target_include_directories(${PROJECT_NAME} PUBLIC include ${catkin_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen yaml-cpp ${catkin_LIBRARIES} ${BACKENDS})
+target_link_libraries(${PROJECT_NAME} PUBLIC yaml-cpp ${catkin_LIBRARIES} ${BACKENDS})
 
 # EXAMPLE
 add_executable(example examples/example.cpp)
